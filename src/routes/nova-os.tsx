@@ -64,6 +64,17 @@ function NovaOS() {
   const [aparelho, setAparelho] = useState({
     equipamento: "", marcaModelo: existente?.aparelho ?? "", serie: "", estado: "", acessorios: "",
   });
+  const [defeitoRelatado, setDefeitoRelatado] = useState(existente?.defeito ?? "");
+  const [sintomas, setSintomas] = useState<string[]>([]);
+  const [laudo, setLaudo] = useState("");
+  const [tecnico, setTecnico] = useState("");
+  const [servico, setServico] = useState("");
+  const [pecas, setPecas] = useState("");
+  const [garantia, setGarantia] = useState("90 dias");
+  const [observacoes, setObservacoes] = useState("");
+
+  const toggleSintoma = (s: string) =>
+    setSintomas((cur) => (cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s]));
 
   const mudarStatus = (s: OSStatus) => {
     setStatus(s);
