@@ -152,3 +152,50 @@
     font-family: var(--font-sans);
   }
 }
+
+/* ===== Documento A4 da OS (cores próprias de papel, independentes do tema) ===== */
+.os-doc {
+  --doc-ink: oklch(0.2 0.01 250);
+  --doc-muted: oklch(0.45 0.01 250);
+  --doc-line: oklch(0.82 0.01 250);
+  --doc-accent: oklch(0.45 0.12 250);
+  --doc-paper: oklch(1 0 0);
+  --doc-tint: oklch(0.97 0.005 250);
+  width: 210mm;
+  min-height: 297mm;
+  padding: 14mm;
+  background: var(--doc-paper);
+  color: var(--doc-ink);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 10.5pt;
+  line-height: 1.4;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 4mm;
+}
+.os-doc-header { display: flex; justify-content: space-between; gap: 6mm; border-bottom: 2px solid var(--doc-accent); padding-bottom: 4mm; }
+.os-doc-brand { font-size: 20pt; font-weight: 800; color: var(--doc-accent); }
+.os-doc-muted { color: var(--doc-muted); font-size: 9pt; }
+.os-doc-numbox { text-align: right; border: 1px solid var(--doc-line); border-radius: 6px; padding: 3mm 4mm; background: var(--doc-tint); }
+.os-doc-num { font-family: ui-monospace, monospace; font-size: 16pt; font-weight: 800; }
+.os-doc-section, .os-doc-box { border: 1px solid var(--doc-line); border-radius: 6px; padding: 3mm 4mm; break-inside: avoid; }
+.os-doc-box { min-height: 28mm; }
+.os-doc-title { font-size: 9pt; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--doc-accent); margin: 0 0 2mm; }
+.os-doc-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5mm 6mm; }
+.os-doc-row { display: flex; flex-direction: column; }
+.os-doc-label { font-size: 8pt; text-transform: uppercase; color: var(--doc-muted); letter-spacing: .04em; }
+.os-doc-value { font-weight: 500; white-space: pre-wrap; }
+.os-doc-text { white-space: pre-wrap; margin: 0 0 2mm; }
+.os-doc-signs { display: grid; grid-template-columns: 1fr 1fr; gap: 14mm; margin-top: auto; padding-top: 16mm; text-align: center; break-inside: avoid; }
+.os-doc-line { border-top: 1px solid var(--doc-ink); margin-bottom: 1.5mm; }
+
+.os-print-holder { position: fixed; left: -10000px; top: 0; pointer-events: none; }
+
+@media print {
+  @page { size: A4; margin: 0; }
+  body * { visibility: hidden !important; }
+  .os-print-holder, .os-print-holder * { visibility: visible !important; }
+  .os-print-holder { position: absolute; left: 0; top: 0; }
+  .os-doc { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
