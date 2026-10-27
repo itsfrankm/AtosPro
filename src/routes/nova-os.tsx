@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { clientes, ordens, statusList, type Cliente, type OSStatus } from "@/lib/os-data";
 
 export const Route = createFileRoute("/nova-os")({
-  validateSearch: (s: Record<string, unknown>): { os?: string } => (typeof s.os === "string" ? { os: s.os } : {}),
+  validateSearch: (s: Record<string, unknown>): { os?: string } => (typeof s["os"] === "string" ? { os: s["os"] } : {}),
   head: () => ({
     meta: [
       { title: "Nova OS · TecnoFix OS" },
@@ -77,8 +77,8 @@ function NovaOS() {
 
   const salvar = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!cliente) return toast.error("Selecione um cliente.");
-    if (!aparelho.marcaModelo.trim()) return toast.error("Informe a marca/modelo do aparelho.");
+    if (!cliente) { toast.error("Selecione um cliente."); return; }
+    if (!aparelho.marcaModelo.trim()) { toast.error("Informe a marca/modelo do aparelho."); return; }
     toast.success(existente ? `${numero} atualizada.` : `${numero} aberta com sucesso.`);
   };
 
