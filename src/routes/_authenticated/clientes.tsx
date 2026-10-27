@@ -6,7 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { clientes as inicial, ordens, brl, dataBR, statusClass, type Cliente } from "@/lib/os-data";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { brl, dataBR, statusClass, type Cliente } from "@/lib/os-data";
+import { clientesQuery, ordensQuery, salvarCliente } from "@/lib/db";
 
 export const Route = createFileRoute("/_authenticated/clientes")({
   head: () => ({
@@ -19,6 +22,7 @@ export const Route = createFileRoute("/_authenticated/clientes")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
+  loader: ({ context }) => Promise.all([context.queryClient.ensureQueryData(clientesQuery), context.queryClient.ensureQueryData(ordensQuery)]),
   component: Clientes,
 });
 
@@ -33,7 +37,9 @@ const campos: [keyof typeof vazio, string, string, boolean?][] = [
 ];
 
 function Clientes() {
-  const [lista, setLista] = useState<Cliente[]>(inicial);
+  const { data: lista } = useSuspenseQuery(clientesQuery);
+  const { data: ordens } = useSuspenseQuery(ordensQuery);
+  const qc = useQueryClient();
   const [q, setQ] = useState("");
   const [editando, setEditando] = useState<Cliente | null>(null);
   const [aberto, setAberto] = useState(false);
@@ -51,19 +57,23 @@ function Clientes() {
 
   const abrir = (c?: Cliente) => {
     setEditando(c ?? null);
-    setForm(c ? { ...c } : vazio);
+    setForm(c ? { nome: c.nome, documento: c.documento, whatsapp: c.whatsapp, email: c.email, cep: c.cep, endereco: c.endereco } : vazio);
     setAberto(true);
   };
 
-  const salvar = (e: React.FormEvent) => {
+  const salvar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.nome.trim()) return;
-    if (editando) setLista((l) => l.map((c) => (c.id === editando.id ? { ...editando, ...form } : c)));
-    else setLista((l) => [{ id: crypto.randomUUID(), ...form }, ...l]);
-    setAberto(false);
+    try {
+      await salvarCliente({ ...form, id: editando?.id });
+      await qc.invalidateQueries({ queryKey: ["customers"] });
+      await qc.invalidateQueries({ queryKey: ["service_orders"] });
+      toast.success(editando ? "Cliente atualizado." : "Cliente cadastrado.");
+      setAberto(false);
+    } catch { toast.error("Não foi possível salvar o cliente."); }
   };
 
-  const osDo = (c: Cliente) => ordens.filter((o) => o.cliente === c.nome);
+  const osDo = (c: Cliente) => ordens.filter((o) => o.clienteId === c.id);
 
   return (
     <>
