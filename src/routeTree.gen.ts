@@ -9,104 +9,109 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as ClientesRouteImport } from './routes/clientes'
-import { Route as NovaOsRouteImport } from './routes/nova-os'
-import { Route as OrdensRouteImport } from './routes/ordens'
+import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticated/clientes'
+import { Route as AuthenticatedNovaOsRouteImport } from './routes/_authenticated/nova-os'
+import { Route as AuthenticatedOrdensRouteImport } from './routes/_authenticated/ordens'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
+const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
+  id: '/_authenticated/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ClientesRoute = ClientesRouteImport.update({
-  id: '/clientes',
+const AuthenticatedClientesRoute = AuthenticatedClientesRouteImport.update({
+  id: '/_authenticated/clientes',
   path: '/clientes',
   getParentRoute: () => rootRouteImport,
 } as any)
-const NovaOsRoute = NovaOsRouteImport.update({
-  id: '/nova-os',
+const AuthenticatedNovaOsRoute = AuthenticatedNovaOsRouteImport.update({
+  id: '/_authenticated/nova-os',
   path: '/nova-os',
   getParentRoute: () => rootRouteImport,
 } as any)
-const OrdensRoute = OrdensRouteImport.update({
-  id: '/ordens',
+const AuthenticatedOrdensRoute = AuthenticatedOrdensRouteImport.update({
+  id: '/_authenticated/ordens',
   path: '/ordens',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/clientes': typeof ClientesRoute
-  '/nova-os': typeof NovaOsRoute
-  '/ordens': typeof OrdensRoute
+  '/clientes': typeof AuthenticatedClientesRoute
+  '/nova-os': typeof AuthenticatedNovaOsRoute
+  '/ordens': typeof AuthenticatedOrdensRoute
+  '/': typeof AuthenticatedIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/clientes': typeof ClientesRoute
-  '/nova-os': typeof NovaOsRoute
-  '/ordens': typeof OrdensRoute
+  '/clientes': typeof AuthenticatedClientesRoute
+  '/nova-os': typeof AuthenticatedNovaOsRoute
+  '/ordens': typeof AuthenticatedOrdensRoute
+  '/': typeof AuthenticatedIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/clientes': typeof ClientesRoute
-  '/nova-os': typeof NovaOsRoute
-  '/ordens': typeof OrdensRoute
+  '/_authenticated/clientes': typeof AuthenticatedClientesRoute
+  '/_authenticated/nova-os': typeof AuthenticatedNovaOsRoute
+  '/_authenticated/ordens': typeof AuthenticatedOrdensRoute
+  '/_authenticated/': typeof AuthenticatedIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/clientes' | '/nova-os' | '/ordens'
+  fullPaths: '/clientes' | '/nova-os' | '/ordens' | '/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/clientes' | '/nova-os' | '/ordens'
-  id: '__root__' | '/' | '/clientes' | '/nova-os' | '/ordens'
+  to: '/clientes' | '/nova-os' | '/ordens' | '/'
+  id:
+    | '__root__'
+    | '/_authenticated/clientes'
+    | '/_authenticated/nova-os'
+    | '/_authenticated/ordens'
+    | '/_authenticated/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  ClientesRoute: typeof ClientesRoute
-  NovaOsRoute: typeof NovaOsRoute
-  OrdensRoute: typeof OrdensRoute
+  AuthenticatedClientesRoute: typeof AuthenticatedClientesRoute
+  AuthenticatedNovaOsRoute: typeof AuthenticatedNovaOsRoute
+  AuthenticatedOrdensRoute: typeof AuthenticatedOrdensRoute
+  AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
+    '/_authenticated/': {
+      id: '/_authenticated/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+      preLoaderRoute: typeof AuthenticatedIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/clientes': {
-      id: '/clientes'
+    '/_authenticated/clientes': {
+      id: '/_authenticated/clientes'
       path: '/clientes'
       fullPath: '/clientes'
-      preLoaderRoute: typeof ClientesRouteImport
+      preLoaderRoute: typeof AuthenticatedClientesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/nova-os': {
-      id: '/nova-os'
+    '/_authenticated/nova-os': {
+      id: '/_authenticated/nova-os'
       path: '/nova-os'
       fullPath: '/nova-os'
-      preLoaderRoute: typeof NovaOsRouteImport
+      preLoaderRoute: typeof AuthenticatedNovaOsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/ordens': {
-      id: '/ordens'
+    '/_authenticated/ordens': {
+      id: '/_authenticated/ordens'
       path: '/ordens'
       fullPath: '/ordens'
-      preLoaderRoute: typeof OrdensRouteImport
+      preLoaderRoute: typeof AuthenticatedOrdensRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  ClientesRoute: ClientesRoute,
-  NovaOsRoute: NovaOsRoute,
-  OrdensRoute: OrdensRoute,
+  AuthenticatedClientesRoute: AuthenticatedClientesRoute,
+  AuthenticatedNovaOsRoute: AuthenticatedNovaOsRoute,
+  AuthenticatedOrdensRoute: AuthenticatedOrdensRoute,
+  AuthenticatedIndexRoute: AuthenticatedIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
