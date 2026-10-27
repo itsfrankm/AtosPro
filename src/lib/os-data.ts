@@ -21,9 +21,27 @@ export const ordens: OrdemServico[] = [
   { numero: "OS-1041", cliente: "Lucas Martins", aparelho: "Xiaomi Redmi Note 11", defeito: "Conector de carga", status: "Entregue", entrada: "2026-10-20", valor: 150 },
 ];
 
-export const clientes = Array.from(
-  new Map(ordens.map((o) => [o.cliente, { nome: o.cliente, aparelhos: ordens.filter((x) => x.cliente === o.cliente).length }])).values(),
-);
+export interface Cliente {
+  id: string;
+  nome: string;
+  documento: string;
+  whatsapp: string;
+  email: string;
+  cep: string;
+  endereco: string;
+}
+
+const docs = ["123.456.789-00", "987.654.321-00", "12.345.678/0001-90", "456.789.123-00", "321.654.987-00", "789.123.456-00", "23.456.789/0001-01", "654.987.321-00"];
+
+export const clientes: Cliente[] = Array.from(new Set(ordens.map((o) => o.cliente))).map((nome, i) => ({
+  id: String(i + 1),
+  nome,
+  documento: docs[i % docs.length],
+  whatsapp: `(11) 9${8100 + i * 37}-${String(1000 + i * 913).slice(0, 4)}`,
+  email: `${nome.split(" ")[0].toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")}@email.com`,
+  cep: `01${310 + i}-000`,
+  endereco: `Rua das Flores, ${100 + i * 12} - Centro, São Paulo/SP`,
+}));
 
 export const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 export const dataBR = (d: string) => new Date(d + "T12:00:00").toLocaleDateString("pt-BR");
