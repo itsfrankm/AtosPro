@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Bug, Check, ClipboardCheck, MessageSquareText, Plus, Search, UserRound, Wrench, X } from "lucide-react";
+import { Bug, Check, MessageSquareText, Plus, Search, UserRound, Wrench, X } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
