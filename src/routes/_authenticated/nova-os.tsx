@@ -12,7 +12,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { clientes, ordens, statusList, type Cliente, type OSStatus } from "@/lib/os-data";
+import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { formatNumero, statusList, type Cliente, type OSStatus } from "@/lib/os-data";
+import { clientesQuery, ordemQuery, salvarCliente, salvarOrdem, toCliente } from "@/lib/db";
 
 export const Route = createFileRoute("/_authenticated/nova-os")({
   validateSearch: (s: Record<string, unknown>): { os?: string } => (typeof s["os"] === "string" ? { os: s["os"] } : {}),
@@ -26,14 +29,19 @@ export const Route = createFileRoute("/_authenticated/nova-os")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: NovaOS,
+  loaderDeps: ({ search }) => ({ os: search.os }),
+  loader: async ({ context, deps }) => {
+    await context.queryClient.ensureQueryData(clientesQuery);
+    const n = Number((deps.os ?? "").replace(/\D/g, ""));
+    if (n) await context.queryClient.ensureQueryData(ordemQuery(n));
+  },
+  component: NovaOSPage,
 });
 
 const hoje = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
-const proximoNumero = () => `OS-${Math.max(...ordens.map((o) => Number(o.numero.replace(/\D/g, "")))) + 1}`;
 
 function Section({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
   return (
@@ -51,28 +59,38 @@ function Field({ label, children, className = "" }: { label: string; children: R
   return <div className={`grid gap-1.5 ${className}`}><Label>{label}</Label>{children}</div>;
 }
 
-function NovaOS() {
+function NovaOSPage() {
   const { os } = Route.useSearch();
-  const existente = os ? ordens.find((o) => o.numero === os) : undefined;
+  const n = Number((os ?? "").replace(/\D/g, ""));
+  const { data: existente } = useQuery({ ...ordemQuery(n), enabled: !!n });
+  return <NovaOS key={existente?.id ?? "nova"} existente={existente ?? undefined} />;
+}
 
-  const [numero] = useState(existente?.numero ?? proximoNumero());
-  const [status, setStatus] = useState<OSStatus>(existente?.status ?? "Em Orçamento");
-  const [entrada, setEntrada] = useState(existente?.entrada ?? hoje());
-  const [finalizacao, setFinalizacao] = useState("");
-  const [cliente, setCliente] = useState<Cliente | null>(existente ? clientes.find((c) => c.nome === existente.cliente) ?? null : null);
+type Existente = NonNullable<Awaited<ReturnType<NonNullable<ReturnType<typeof ordemQuery>["queryFn"]>>>>;
+
+function NovaOS({ existente }: { existente?: Existente }) {
+  const { data: clientes } = useSuspenseQuery(clientesQuery);
+  const qc = useQueryClient();
+  const navigate = useNavigate();
+  const numero = existente ? formatNumero(existente.number) : "(gerado ao salvar)";
+  const [status, setStatus] = useState<OSStatus>((existente?.status as OSStatus) ?? "Em Orçamento");
+  const [entrada, setEntrada] = useState(existente?.entry_date ?? hoje());
+  const [finalizacao, setFinalizacao] = useState(existente?.finish_date ?? "");
+  const [cliente, setCliente] = useState<Cliente | null>(existente?.customers ? toCliente(existente.customers) : null);
   const [busca, setBusca] = useState("");
   const [modal, setModal] = useState(false);
   const [aparelho, setAparelho] = useState({
-    equipamento: "", marcaModelo: existente?.aparelho ?? "", serie: "", estado: "", acessorios: "",
+    equipamento: existente?.equipment ?? "", marcaModelo: existente?.brand_model ?? "", serie: existente?.serial ?? "", estado: existente?.physical_condition ?? "", acessorios: existente?.accessories ?? "",
   });
-  const [defeitoRelatado, setDefeitoRelatado] = useState(existente?.defeito ?? "");
-  const [sintomas, setSintomas] = useState<string[]>([]);
-  const [laudo, setLaudo] = useState("");
-  const [tecnico, setTecnico] = useState("");
-  const [servico, setServico] = useState("");
-  const [pecas, setPecas] = useState("");
-  const [garantia, setGarantia] = useState("90 dias");
-  const [observacoes, setObservacoes] = useState("");
+  const [defeitoRelatado, setDefeitoRelatado] = useState(existente?.reported_defect ?? "");
+  const [sintomas, setSintomas] = useState<string[]>(existente?.symptoms ?? []);
+  const [laudo, setLaudo] = useState(existente?.technical_report ?? "");
+  const [tecnico, setTecnico] = useState(existente?.technician ?? "");
+  const [servico, setServico] = useState(existente?.service_done ?? "");
+  const [pecas, setPecas] = useState(existente?.parts ?? "");
+  const [garantia, setGarantia] = useState(existente?.warranty ?? "90 dias");
+  const [observacoes, setObservacoes] = useState(existente?.notes ?? "");
+  const [salvando, setSalvando] = useState(false);
   const [gerando, setGerando] = useState(false);
   const docRef = useRef<HTMLDivElement>(null);
 
@@ -89,13 +107,26 @@ function NovaOS() {
     if (!t) return [];
     const d = t.replace(/\D/g, "");
     return clientes.filter((c) => c.nome.toLowerCase().includes(t) || (d && (c.documento.replace(/\D/g, "").includes(d) || c.whatsapp.replace(/\D/g, "").includes(d)))).slice(0, 6);
-  }, [busca, modal]);
+  }, [busca, clientes]);
 
-  const salvar = (e: React.FormEvent) => {
+  const salvar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!cliente) { toast.error("Selecione um cliente."); return; }
     if (!aparelho.marcaModelo.trim()) { toast.error("Informe a marca/modelo do aparelho."); return; }
-    toast.success(existente ? `${numero} atualizada.` : `${numero} aberta com sucesso.`);
+    setSalvando(true);
+    try {
+      const r = await salvarOrdem({
+        customer_id: cliente.id, status, entry_date: entrada, finish_date: finalizacao || null,
+        equipment: aparelho.equipamento, brand_model: aparelho.marcaModelo, serial: aparelho.serie,
+        physical_condition: aparelho.estado, accessories: aparelho.acessorios,
+        reported_defect: defeitoRelatado, symptoms: sintomas, technical_report: laudo, technician: tecnico,
+        service_done: servico, parts: pecas, warranty: garantia, notes: observacoes,
+      }, existente?.id);
+      await qc.invalidateQueries({ queryKey: ["service_orders"] });
+      toast.success(existente ? `${formatNumero(r.number)} atualizada.` : `${formatNumero(r.number)} aberta com sucesso.`);
+      if (!existente) navigate({ to: "/nova-os", search: { os: formatNumero(r.number) } });
+    } catch { toast.error("Não foi possível salvar a OS."); }
+    finally { setSalvando(false); }
   };
 
   const ap = (k: keyof typeof aparelho) => ({
@@ -260,23 +291,23 @@ function NovaOS() {
         </Section>
 
         <div className="flex justify-end">
-          <Button type="submit" size="lg"><Check className="size-4" /> {existente ? "Salvar alterações" : "Abrir OS"}</Button>
+          <Button type="submit" size="lg" disabled={salvando}><Check className="size-4" /> {existente ? "Salvar alterações" : "Abrir OS"}</Button>
         </div>
       </form>
 
-      <CadastroRapido open={modal} onOpenChange={setModal} onSave={(c) => { clientes.unshift(c); setCliente(c); setModal(false); }} />
+      <CadastroRapido open={modal} onOpenChange={setModal} onSave={async (c) => { try { const novo = await salvarCliente(c); await qc.invalidateQueries({ queryKey: ["customers"] }); setCliente(novo); setModal(false); } catch { toast.error("Não foi possível cadastrar o cliente."); } }} />
     </>
   );
 }
 
-function CadastroRapido({ open, onOpenChange, onSave }: { open: boolean; onOpenChange: (o: boolean) => void; onSave: (c: Cliente) => void }) {
+function CadastroRapido({ open, onOpenChange, onSave }: { open: boolean; onOpenChange: (o: boolean) => void; onSave: (c: Omit<Cliente, "id">) => void }) {
   const [f, setF] = useState({ nome: "", documento: "", whatsapp: "", email: "", cep: "", endereco: "" });
   const campos: [keyof typeof f, string][] = [["nome", "Nome Completo"], ["documento", "CPF/CNPJ"], ["whatsapp", "Telefone/WhatsApp"], ["email", "E-mail"]];
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader><DialogTitle>Cadastro rápido de cliente</DialogTitle></DialogHeader>
-        <form onSubmit={(e) => { e.preventDefault(); e.stopPropagation(); if (!f.nome.trim()) return; onSave({ id: crypto.randomUUID(), ...f }); setF({ nome: "", documento: "", whatsapp: "", email: "", cep: "", endereco: "" }); }} className="grid gap-4">
+        <form onSubmit={(e) => { e.preventDefault(); e.stopPropagation(); if (!f.nome.trim()) return; onSave({ ...f }); setF({ nome: "", documento: "", whatsapp: "", email: "", cep: "", endereco: "" }); }} className="grid gap-4">
           {campos.map(([k, l]) => (
             <Field key={k} label={l}><Input required={k === "nome"} type={k === "email" ? "email" : "text"} value={f[k]} onChange={(e) => setF((x) => ({ ...x, [k]: e.target.value }))} /></Field>
           ))}
