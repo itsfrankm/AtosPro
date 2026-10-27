@@ -36,9 +36,9 @@ const docs = ["123.456.789-00", "987.654.321-00", "12.345.678/0001-90", "456.789
 export const clientes: Cliente[] = Array.from(new Set(ordens.map((o) => o.cliente))).map((nome, i) => ({
   id: String(i + 1),
   nome,
-  documento: docs[i % docs.length],
+  documento: docs[i % docs.length] ?? "",
   whatsapp: `(11) 9${8100 + i * 37}-${String(1000 + i * 913).slice(0, 4)}`,
-  email: `${nome.split(" ")[0].toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")}@email.com`,
+  email: `${(nome.split(" ")[0] ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")}@email.com`,
   cep: `01${310 + i}-000`,
   endereco: `Rua das Flores, ${100 + i * 12} - Centro, São Paulo/SP`,
 }));
