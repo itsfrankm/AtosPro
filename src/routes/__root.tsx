@@ -13,6 +13,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AppSidebar } from "@/components/AppSidebar";
+import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
   return (
@@ -123,6 +124,7 @@ function RootComponent() {
       <main className="min-h-screen pl-16 md:pl-64">
         <div className="mx-auto max-w-7xl p-6 md:p-10">
           <Outlet />
+          <Toaster richColors />
         </div>
       </main>
     </QueryClientProvider>
