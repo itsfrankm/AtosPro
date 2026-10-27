@@ -1,12 +1,14 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Check, Plus, Search, UserRound, X } from "lucide-react";
+import { Bug, Check, MessageSquareText, Plus, Search, UserRound, Wrench, X } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { clientes, ordens, statusList, type Cliente, type OSStatus } from "@/lib/os-data";
@@ -62,6 +64,17 @@ function NovaOS() {
   const [aparelho, setAparelho] = useState({
     equipamento: "", marcaModelo: existente?.aparelho ?? "", serie: "", estado: "", acessorios: "",
   });
+  const [defeitoRelatado, setDefeitoRelatado] = useState(existente?.defeito ?? "");
+  const [sintomas, setSintomas] = useState<string[]>([]);
+  const [laudo, setLaudo] = useState("");
+  const [tecnico, setTecnico] = useState("");
+  const [servico, setServico] = useState("");
+  const [pecas, setPecas] = useState("");
+  const [garantia, setGarantia] = useState("90 dias");
+  const [observacoes, setObservacoes] = useState("");
+
+  const toggleSintoma = (s: string) =>
+    setSintomas((cur) => (cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s]));
 
   const mudarStatus = (s: OSStatus) => {
     setStatus(s);
@@ -144,6 +157,72 @@ function NovaOS() {
             <Field label="Estado Físico/Avarias prévias" className="sm:col-span-3"><Textarea rows={3} placeholder="Riscos, amassados, tela trincada…" {...ap("estado")} /></Field>
             <Field label="Acessórios deixados" className="sm:col-span-3"><Input placeholder="Ex.: Carregador, capinha, chip" {...ap("acessorios")} /></Field>
           </div>
+        </Section>
+
+        <Section title="Diagnóstico e Execução">
+          <Tabs defaultValue="defeito" className="gap-0 overflow-hidden rounded-lg border">
+            <TabsList className="grid h-auto w-full grid-cols-3 rounded-none border-b bg-muted/40 p-0">
+              <TabsTrigger
+                value="defeito"
+                className="flex h-auto flex-col gap-1 rounded-none py-3 data-[state=active]:bg-background data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary"
+              >
+                <MessageSquareText className="size-4 text-status-quote" />
+                <span className="font-medium">Defeito Relatado (Cliente)</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="laudo"
+                className="flex h-auto flex-col gap-1 rounded-none border-l py-3 data-[state=active]:bg-background data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary"
+              >
+                <Bug className="size-4 text-status-bench" />
+                <span className="font-medium">Avaliação Técnica (Laudo)</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="servico"
+                className="flex h-auto flex-col gap-1 rounded-none border-l py-3 data-[state=active]:bg-background data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary"
+              >
+                <Wrench className="size-4 text-status-done" />
+                <span className="font-medium">Serviço Realizado</span>
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="defeito" className="grid gap-4 p-6">
+              <Field label="O que o cliente relatou">
+                <Textarea rows={4} placeholder="Descrição do defeito nas palavras do cliente…" value={defeitoRelatado} onChange={(e) => setDefeitoRelatado(e.target.value)} />
+              </Field>
+              <div className="grid gap-2">
+                <Label>Sintomas comuns</Label>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                  {["Não liga", "Não carrega", "Tela com defeito", "Sem áudio",
+                    "Superaquecimento", "Bateria vicia/estufa", "Câmera não funciona", "Botões não respondem"].map((s) => (
+                    <label key={s} className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm font-normal cursor-pointer hover:bg-muted/60 has-[[data-state=checked]]:border-primary/40 has-[[data-state=checked]]:bg-primary/5">
+                      <Checkbox checked={sintomas.includes(s)} onCheckedChange={() => toggleSintoma(s)} />
+                      {s}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="laudo" className="grid gap-4 p-6">
+              <Field label="Diagnóstico técnico — o que foi visto na bancada">
+                <Textarea rows={4} placeholder="Ex.: Testado com fonte externa, placa apresenta oxidação no conector de carga…" value={laudo} onChange={(e) => setLaudo(e.target.value)} />
+              </Field>
+              <Field label="Técnico Responsável" className="max-w-xs">
+                <Input placeholder="Ex.: Marcos Silva" value={tecnico} onChange={(e) => setTecnico(e.target.value)} />
+              </Field>
+            </TabsContent>
+
+            <TabsContent value="servico" className="grid gap-4 p-6">
+              <Field label="O que foi feito no aparelho">
+                <Textarea rows={4} placeholder="Ex.: Troca de display e vedação revisada, aparelho testado por 2h…" value={servico} onChange={(e) => setServico(e.target.value)} />
+              </Field>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Peças trocadas"><Input placeholder="Ex.: Display iPhone 13 Pro (original)" value={pecas} onChange={(e) => setPecas(e.target.value)} /></Field>
+                <Field label="Prazo de garantia"><Input placeholder="Ex.: 90 dias" value={garantia} onChange={(e) => setGarantia(e.target.value)} /></Field>
+              </div>
+              <Field label="Observações finais"><Textarea rows={3} placeholder="Recomendações ao cliente, pendências…" value={observacoes} onChange={(e) => setObservacoes(e.target.value)} /></Field>
+            </TabsContent>
+          </Tabs>
         </Section>
 
         <div className="flex justify-end">
