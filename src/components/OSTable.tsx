@@ -1,18 +1,14 @@
 import { useMemo, useState } from "react";
-import { Link } from "@tanstack/react-router";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import { Search } from "lucide-react";
-import { ordensQuery } from "@/lib/db";
-import { brl, dataBR, statusClass } from "@/lib/os-data";
+import { ordens, brl, dataBR, statusClass } from "@/lib/os-data";
 
-export function OSTable({ title, limit }: { title: string; limit?: number }) {
-  const { data: ordens } = useSuspenseQuery(ordensQuery);
+export function OSTable({ title }: { title: string }) {
   const [q, setQ] = useState("");
   const list = useMemo(() => {
     const t = q.trim().toLowerCase();
-    const base = t ? ordens.filter((o) => [o.numero, o.cliente, o.aparelho].some((f) => f.toLowerCase().includes(t))) : ordens;
-    return limit ? base.slice(0, limit) : base;
-  }, [q, ordens, limit]);
+    if (!t) return ordens;
+    return ordens.filter((o) => [o.numero, o.cliente, o.aparelho].some((f) => f.toLowerCase().includes(t)));
+  }, [q]);
 
   return (
     <section className="rounded-xl border bg-card shadow-card">
@@ -39,15 +35,13 @@ export function OSTable({ title, limit }: { title: string; limit?: number }) {
           </thead>
           <tbody>
             {list.map((o) => (
-              <tr key={o.id} className="border-t transition-colors hover:bg-muted/40">
-                <td className="px-5 py-3 font-mono font-semibold text-primary">
-                  <Link to="/nova-os" search={{ os: o.numero }} className="hover:underline">{o.numero}</Link>
-                </td>
+              <tr key={o.numero} className="border-t transition-colors hover:bg-muted/40">
+                <td className="px-5 py-3 font-mono font-semibold text-primary">{o.numero}</td>
                 <td className="px-5 py-3 font-medium">{o.cliente}</td>
                 <td className="px-5 py-3">{o.aparelho}</td>
-                <td className="max-w-64 truncate px-5 py-3 text-muted-foreground">{o.defeito || "—"}</td>
+                <td className="px-5 py-3 text-muted-foreground">{o.defeito}</td>
                 <td className="px-5 py-3">
-                  <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusClass[o.status] ?? ""}`}>{o.status}</span>
+                  <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusClass[o.status]}`}>{o.status}</span>
                 </td>
                 <td className="px-5 py-3 text-muted-foreground">{dataBR(o.entrada)}</td>
                 <td className="px-5 py-3 font-medium">{o.valor ? brl(o.valor) : "—"}</td>
