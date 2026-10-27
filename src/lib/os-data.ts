@@ -1,4 +1,5 @@
-export type OSStatus = "Na Bancada" | "Em Orçamento" | "Aguardando Peça" | "Concluída" | "Entregue";
+export type OSStatus = "Na Bancada" | "Em Orçamento" | "Aguardando Peça" | "Concluída" | "Finalizado" | "Entregue";
+export const statusList: OSStatus[] = ["Em Orçamento", "Na Bancada", "Aguardando Peça", "Concluída", "Finalizado", "Entregue"];
 
 export interface OrdemServico {
   numero: string;
@@ -51,5 +52,6 @@ export const statusClass: Record<OSStatus, string> = {
   "Em Orçamento": "bg-status-quote/15 text-status-quote",
   "Aguardando Peça": "bg-muted text-muted-foreground",
   "Concluída": "bg-status-done/15 text-status-done",
+  "Finalizado": "bg-status-done/15 text-status-done",
   "Entregue": "bg-primary/10 text-primary",
 };
