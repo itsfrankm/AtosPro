@@ -21,7 +21,7 @@ export interface OSDocumentData {
 
 const v = (s?: string) => (s && s.trim() ? s : "—");
 
-function Row({ label, value }: { label: string; value?: string }) {
+function Row({ label, value }: { label: string; value?: string | undefined }) {
   return (
     <div className="os-doc-row">
       <span className="os-doc-label">{label}</span>
