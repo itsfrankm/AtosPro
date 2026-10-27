@@ -1,24 +1,45 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Wrench, FileText, CheckCircle2, Wallet } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
+import { OSTable } from "@/components/OSTable";
+import { ordens, brl } from "@/lib/os-data";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
-  component: Index,
+  head: () => ({
+    meta: [
+      { title: "Painel Geral · TecnoFix OS" },
+      { name: "description", content: "Resumo das ordens de serviço da assistência técnica." },
+      { property: "og:title", content: "Painel Geral · TecnoFix OS" },
+      { property: "og:description", content: "Resumo das ordens de serviço da assistência técnica." },
+    ],
+  }),
+  component: Painel,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
-function Index() {
+function Painel() {
+  const count = (s: string) => ordens.filter((o) => o.status === s).length;
+  const total = ordens.reduce((a, o) => a + o.valor, 0);
+  const cards = [
+    { label: "Na Bancada", value: count("Na Bancada"), icon: Wrench, tone: "text-status-bench bg-status-bench/10" },
+    { label: "Em Orçamento", value: count("Em Orçamento"), icon: FileText, tone: "text-status-quote bg-status-quote/10" },
+    { label: "Concluídas", value: count("Concluída"), icon: CheckCircle2, tone: "text-status-done bg-status-done/10" },
+    { label: "Total do Mês", value: brl(total), icon: Wallet, tone: "text-primary bg-primary/10" },
+  ];
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
+    <>
+      <PageHeader title="Painel Geral" subtitle="Acompanhe o andamento da sua assistência técnica." />
+      <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {cards.map((c) => (
+          <div key={c.label} className="rounded-xl border bg-card p-5 shadow-card">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-muted-foreground">{c.label}</p>
+              <span className={`grid size-9 place-items-center rounded-lg ${c.tone}`}><c.icon className="size-5" /></span>
+            </div>
+            <p className="mt-3 font-display text-3xl font-bold">{c.value}</p>
+          </div>
+        ))}
+      </div>
+      <OSTable title="Ordens Recentes" />
+    </>
   );
 }
