@@ -14,7 +14,128 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      customers: {
+        Row: {
+          address: string
+          cep: string
+          created_at: string
+          document: string
+          email: string
+          id: string
+          name: string
+          updated_at: string
+          whatsapp: string
+        }
+        Insert: {
+          address?: string
+          cep?: string
+          created_at?: string
+          document?: string
+          email?: string
+          id?: string
+          name: string
+          updated_at?: string
+          whatsapp?: string
+        }
+        Update: {
+          address?: string
+          cep?: string
+          created_at?: string
+          document?: string
+          email?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          whatsapp?: string
+        }
+        Relationships: []
+      }
+      service_orders: {
+        Row: {
+          accessories: string
+          amount: number
+          brand_model: string
+          created_at: string
+          created_by: string | null
+          customer_id: string
+          entry_date: string
+          equipment: string
+          finish_date: string | null
+          id: string
+          notes: string
+          number: number
+          parts: string
+          physical_condition: string
+          reported_defect: string
+          serial: string
+          service_done: string
+          status: string
+          symptoms: string[]
+          technical_report: string
+          technician: string
+          updated_at: string
+          warranty: string
+        }
+        Insert: {
+          accessories?: string
+          amount?: number
+          brand_model?: string
+          created_at?: string
+          created_by?: string | null
+          customer_id: string
+          entry_date?: string
+          equipment?: string
+          finish_date?: string | null
+          id?: string
+          notes?: string
+          number?: number
+          parts?: string
+          physical_condition?: string
+          reported_defect?: string
+          serial?: string
+          service_done?: string
+          status?: string
+          symptoms?: string[]
+          technical_report?: string
+          technician?: string
+          updated_at?: string
+          warranty?: string
+        }
+        Update: {
+          accessories?: string
+          amount?: number
+          brand_model?: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string
+          entry_date?: string
+          equipment?: string
+          finish_date?: string | null
+          id?: string
+          notes?: string
+          number?: number
+          parts?: string
+          physical_condition?: string
+          reported_defect?: string
+          serial?: string
+          service_done?: string
+          status?: string
+          symptoms?: string[]
+          technical_report?: string
+          technician?: string
+          updated_at?: string
+          warranty?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
