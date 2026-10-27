@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Bug, Check, MessageSquareText, Plus, Search, UserRound, Wrench, X } from "lucide-react";
+import { Bug, Check, FileDown, MessageSquareText, Plus, Printer, Search, UserRound, Wrench, X } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
+import { OSDocument, type OSDocumentData } from "@/components/OSDocument";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -72,6 +73,8 @@ function NovaOS() {
   const [pecas, setPecas] = useState("");
   const [garantia, setGarantia] = useState("90 dias");
   const [observacoes, setObservacoes] = useState("");
+  const [gerando, setGerando] = useState(false);
+  const docRef = useRef<HTMLDivElement>(null);
 
   const toggleSintoma = (s: string) =>
     setSintomas((cur) => (cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s]));
@@ -100,9 +103,40 @@ function NovaOS() {
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setAparelho((a) => ({ ...a, [k]: e.target.value })),
   });
 
+  const docData: OSDocumentData = {
+    numero, status, entrada, finalizacao, cliente, aparelho,
+    defeito: defeitoRelatado, sintomas, laudo, tecnico, servico, pecas, garantia, observacoes,
+  };
+
+  const imprimir = () => window.print();
+
+  const baixarPDF = async () => {
+    if (!docRef.current) return;
+    setGerando(true);
+    try {
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import("html2canvas-pro"), import("jspdf")]);
+      const canvas = await html2canvas(docRef.current, { scale: 2, backgroundColor: "#ffffff" });
+      const pdf = new jsPDF({ unit: "mm", format: "a4" });
+      const h = Math.min(297, (canvas.height * 210) / canvas.width);
+      pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, 210, h);
+      pdf.save(`${numero}.pdf`);
+    } catch {
+      toast.error("Não foi possível gerar o PDF.");
+    } finally {
+      setGerando(false);
+    }
+  };
+
   return (
     <>
-      <PageHeader title={existente ? `Editar ${numero}` : "Nova Ordem de Serviço"} subtitle="Registre a entrada do aparelho e os dados do cliente." />
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <PageHeader title={existente ? `Editar ${numero}` : "Nova Ordem de Serviço"} subtitle="Registre a entrada do aparelho e os dados do cliente." />
+        <div className="flex gap-2">
+          <Button type="button" variant="outline" size="lg" onClick={imprimir}><Printer className="mr-2 h-4 w-4" />Imprimir OS</Button>
+          <Button type="button" size="lg" onClick={baixarPDF} disabled={gerando}><FileDown className="mr-2 h-4 w-4" />{gerando ? "Gerando..." : "Baixar em PDF"}</Button>
+        </div>
+      </div>
+      <div className="os-print-holder" aria-hidden><OSDocument ref={docRef} data={docData} /></div>
       <form onSubmit={salvar} className="grid max-w-5xl gap-6">
         <Section title="Dados da OS">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
