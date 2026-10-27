@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { OSTable } from "@/components/OSTable";
 import { ordens, brl } from "@/lib/os-data";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
     meta: [
       { title: "Painel Geral · TecnoFix OS" },

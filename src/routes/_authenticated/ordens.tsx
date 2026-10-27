@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/PageHeader";
 import { OSTable } from "@/components/OSTable";
 
-export const Route = createFileRoute("/ordens")({
+export const Route = createFileRoute("/_authenticated/ordens")({
   head: () => ({
     meta: [
       { title: "Ordens de Serviço · TecnoFix OS" },

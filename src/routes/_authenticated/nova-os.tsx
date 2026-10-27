@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { clientes, ordens, statusList, type Cliente, type OSStatus } from "@/lib/os-data";
 
-export const Route = createFileRoute("/nova-os")({
+export const Route = createFileRoute("/_authenticated/nova-os")({
   validateSearch: (s: Record<string, unknown>): { os?: string } => (typeof s["os"] === "string" ? { os: s["os"] } : {}),
   head: () => ({
     meta: [
