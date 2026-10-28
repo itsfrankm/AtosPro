@@ -24,7 +24,7 @@ export function aplicarCompra(produtos: Produto[], itens: ItemNota[]): Produto[]
   return produtos.map((p) => {
     const its = itens.filter((i) => i.produtoId === p.id);
     if (!its.length) return p;
-    return { ...p, quantidade: p.quantidade + its.reduce((s, i) => s + i.quantidade, 0), custo: its[its.length - 1].valorUnit };
+    return { ...p, quantidade: p.quantidade + its.reduce((s, i) => s + i.quantidade, 0), custo: its[its.length - 1]!.valorUnit };
   });
 }
 

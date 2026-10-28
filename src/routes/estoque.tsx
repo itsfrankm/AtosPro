@@ -68,7 +68,7 @@ function Lista({ produtos }: { produtos: Produto[] }) {
 
   const abrir = (p: Produto) => { setEd(p); setF({ nome: p.nome, quantidade: String(p.quantidade), custo: String(p.custo), venda: String(p.venda) }); };
   const salvar = () => {
-    if (!ed || !f.nome.trim()) return toast.error("Informe o nome do produto.");
+    if (!ed || !f.nome.trim()) { toast.error("Informe o nome do produto."); return; }
     setEstado((e) => ({ ...e, produtos: e.produtos.map((p) => p.id === ed.id ? { ...p, nome: f.nome.trim(), quantidade: Math.round(num(f.quantidade)), custo: num(f.custo), venda: num(f.venda) } : p) }));
     toast.success("Produto atualizado.");
     setEd(null);
@@ -132,7 +132,7 @@ function Cadastro({ onDone }: { onDone: () => void }) {
   const [f, setF] = useState(vazio);
   const salvar = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!f.nome.trim()) return toast.error("Informe o nome do produto.");
+    if (!f.nome.trim()) { toast.error("Informe o nome do produto."); return; }
     setEstado((s) => ({ ...s, produtos: [...s.produtos, { id: uid(), nome: f.nome.trim(), sku: f.sku.trim(), quantidade: Math.round(num(f.quantidade)), custo: num(f.custo), venda: num(f.venda) }] }));
     toast.success("Produto cadastrado.");
     setF(vazio);

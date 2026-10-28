@@ -56,7 +56,7 @@ function Fornecedores() {
   if (atual) return <Detalhe forn={atual} voltar={() => setSel(null)} />;
 
   const criar = () => {
-    if (!f.nome.trim()) return toast.error("Informe o nome da empresa.");
+    if (!f.nome.trim()) { toast.error("Informe o nome da empresa."); return; }
     setEstado((e) => ({ ...e, fornecedores: [...e.fornecedores, { id: uid(), ...f, nome: f.nome.trim() }] }));
     toast.success("Fornecedor cadastrado.");
     setNovo(false);
@@ -106,7 +106,7 @@ function Fornecedores() {
 function Detalhe({ forn, voltar }: { forn: Fornecedor; voltar: () => void }) {
   const [f, setF] = useState({ nome: forn.nome, cnpj: forn.cnpj, telefone: forn.telefone, endereco: forn.endereco });
   const salvar = () => {
-    if (!f.nome.trim()) return toast.error("Informe o nome da empresa.");
+    if (!f.nome.trim()) { toast.error("Informe o nome da empresa."); return; }
     setEstado((e) => ({ ...e, fornecedores: e.fornecedores.map((x) => x.id === forn.id ? { ...x, ...f } : x) }));
     toast.success("Dados atualizados.");
   };
@@ -150,8 +150,8 @@ function Notas({ fornecedorId }: { fornecedorId: string }) {
 
   const salvar = () => {
     const validos = itens.filter((i) => i.produtoId && i.quantidade > 0);
-    if (!numero.trim()) return toast.error("Informe o número da nota.");
-    if (!validos.length) return toast.error("Adicione ao menos um produto com quantidade.");
+    if (!numero.trim()) { toast.error("Informe o número da nota."); return; }
+    if (!validos.length) { toast.error("Adicione ao menos um produto com quantidade."); return; }
     setEstado((e) => ({
       ...e,
       produtos: aplicarCompra(e.produtos, validos),
@@ -181,7 +181,7 @@ function Notas({ fornecedorId }: { fornecedorId: string }) {
               </select>
               <Input className="col-span-4 sm:col-span-2" type="number" min={1} value={l.quantidade} onChange={(e) => upd(l.key, { quantidade: e.target.value })} />
               <Input className="col-span-4 sm:col-span-2" inputMode="decimal" placeholder="0,00" value={l.valorUnit} onChange={(e) => upd(l.key, { valorUnit: e.target.value })} />
-              <span className="col-span-3 text-sm font-medium sm:col-span-2">{brl(itens[i].quantidade * itens[i].valorUnit)}</span>
+              <span className="col-span-3 text-sm font-medium sm:col-span-2">{brl(itens[i]!.quantidade * itens[i]!.valorUnit)}</span>
               <Button variant="ghost" size="icon" className="col-span-1" disabled={linhas.length === 1} onClick={() => setLinhas((ls) => ls.filter((x) => x.key !== l.key))} aria-label="Remover item"><Trash2 className="size-4" /></Button>
             </div>
           ))}
