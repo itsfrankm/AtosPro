@@ -47,7 +47,7 @@ function Vendas() {
   const adicionar = (id = prodId) => {
     const p = produtos.find((x) => x.id === id);
     const n = Math.max(1, Math.round(num(qtd)));
-    if (!p) return toast.error("Selecione um produto.");
+    if (!p) { toast.error("Selecione um produto."); return; }
     const jaNaNota = itens.filter((i) => i.produtoId === p.id).reduce((s, i) => s + i.quantidade, 0);
     if (jaNaNota + n > p.quantidade) toast.warning(`Atenção: só há ${p.quantidade} em estoque de "${p.nome}".`);
     setItens((its) => {
@@ -58,7 +58,7 @@ function Vendas() {
   };
 
   const concluir = () => {
-    if (!itens.length) return toast.error("Adicione produtos à nota.");
+    if (!itens.length) { toast.error("Adicione produtos à nota."); return; }
     const venda: Venda = { id: uid(), numero: vendas.length + 1, dataHora: new Date().toISOString(), itens, subtotal, desconto: calc.desconto, arredondamento: calc.arredondamento, total: calc.total };
     setEstado((e) => ({ ...e, produtos: aplicarVenda(e.produtos, itens), vendas: [...e.vendas, venda] }));
     setConcluida(venda);
