@@ -199,3 +199,18 @@
   .os-print-holder { position: absolute; left: 0; top: 0; }
   .os-doc { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* ===== Cupom térmico 80mm ===== */
+.cupom {
+  --cp-ink: oklch(0.15 0 0);
+  --cp-paper: oklch(1 0 0);
+  width: 72mm; padding: 4mm; background: var(--cp-paper); color: var(--cp-ink);
+  font-family: "Courier New", ui-monospace, monospace; font-size: 9pt; line-height: 1.35; text-align: left;
+}
+.cupom-c { text-align: center; }
+.cupom-lg { font-size: 11pt; }
+.cupom-row { display: flex; justify-content: space-between; gap: 2mm; }
+.cupom-hr { border-top: 1px dashed var(--cp-ink); margin: 2mm 0; }
+@media print {
+  .os-print-holder .cupom { width: 80mm; padding: 3mm 4mm; }
+}

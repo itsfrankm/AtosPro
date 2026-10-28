@@ -1,11 +1,14 @@
 import { Link } from "@tanstack/react-router";
-import { LayoutDashboard, PlusCircle, ClipboardList, Users, Wrench } from "lucide-react";
+import { LayoutDashboard, PlusCircle, ClipboardList, Users, Wrench, Package, Truck, ShoppingCart } from "lucide-react";
 
 const items = [
   { to: "/", label: "Painel Geral", icon: LayoutDashboard },
   { to: "/nova-os", label: "Nova OS", icon: PlusCircle },
   { to: "/ordens", label: "Ordens de Serviço", icon: ClipboardList },
   { to: "/clientes", label: "Clientes", icon: Users },
+  { to: "/estoque", label: "Estoque", icon: Package },
+  { to: "/fornecedores", label: "Fornecedores", icon: Truck },
+  { to: "/vendas", label: "Vendas", icon: ShoppingCart },
 ] as const;
 
 export function AppSidebar() {
