@@ -4,8 +4,8 @@ Sistema web moderno e completo para assistência técnica e gestão comercial (O
 
 ## 🚀 Funcionalidades
 
-- **Ordens de Serviço (OS):** Emissão e impressão otimizada em folha A4 (1 página), controle de status (Na Bancada, Em Orçamento, Concluída, etc.), laudos técnicos e custos de peças.
-- **Ponto de Venda (PDV / Vendas):** Vendas rápidas, múltiplos meios de pagamento combinados, cálculo automático de troco e impressão de Cupom Térmico (80mm).
+- **Ordens de Serviço (OS):** Emissão e impressão otimizada, controle de status (Na Bancada, Em Orçamento, Concluída, etc.), laudos técnicos e custos de peças.
+- **Ponto de Venda (PDV / Vendas):** Vendas rápidas, múltiplos meios de pagamento combinados, cálculo automático de troco e impressão de Cupom Térmico.
 - **Controle de Estoque e Compras:** Cadastro de produtos com código SKU, custos, preços de venda, margem de lucro e notas de compra de fornecedores.
 - **Gestão Financeira Consolidada:** Dashboards Diário, Semanal, Mensal e Anual, métricas de faturamento, lucro líquido real e controle da gaveta de Caixa.
 - **Módulo de Caixa:** Abertura, fechamento, entradas avulsas (suprimentos) e retiradas (sangrias).
