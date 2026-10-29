@@ -8,15 +8,25 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { num } from "@/lib/utils";
 import { brl, dataBR } from "@/lib/os-data";
 import { useEstoque, setEstado, uid, formatCNPJ, formatFone, aplicarCompra, somaItens, type Fornecedor } from "@/lib/estoque";
+import {
+  useDebouncedValue,
+  escaparBuscaIlike,
+  normalizarBuscaSegura,
+  fornecedorSchema,
+  notaCompraSchema,
+  verificarRateLimit,
+} from "@/lib/security";
+import { getTenantUserId } from "@/lib/auth";
 
 export const Route = createFileRoute("/fornecedores")({
   head: () => ({
     meta: [
-      { title: "Fornecedores · TecnoFix OS" },
+      { title: "AtosPro" },
       { name: "description", content: "Cadastro de fornecedores e notas de compra." },
-      { property: "og:title", content: "Fornecedores · TecnoFix OS" },
+      { property: "og:title", content: "AtosPro" },
       { property: "og:description", content: "Cadastro de fornecedores e notas de compra." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -26,17 +36,16 @@ export const Route = createFileRoute("/fornecedores")({
 });
 
 const vazio = { nome: "", cnpj: "", telefone: "", endereco: "" };
-const num = (s: string) => parseFloat(s.replace(",", ".")) || 0;
 
 function CamposFornecedor({ f, setF, comNome = true }: { f: typeof vazio; setF: (v: typeof vazio) => void; comNome?: boolean }) {
   return (
     <div className="grid gap-4">
-      {comNome && <div className="grid gap-1.5"><Label>Nome da Empresa / Razão Social</Label><Input value={f.nome} onChange={(e) => setF({ ...f, nome: e.target.value })} /></div>}
+      {comNome && <div className="grid gap-1.5"><Label>Nome da Empresa / Razão Social</Label><Input maxLength={150} value={f.nome} onChange={(e) => setF({ ...f, nome: e.target.value })} /></div>}
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="grid gap-1.5"><Label>CNPJ</Label><Input value={f.cnpj} onChange={(e) => setF({ ...f, cnpj: formatCNPJ(e.target.value) })} placeholder="00.000.000/0000-00" /></div>
-        <div className="grid gap-1.5"><Label>Telefone da Empresa</Label><Input value={f.telefone} onChange={(e) => setF({ ...f, telefone: formatFone(e.target.value) })} placeholder="(00) 0000-0000" /></div>
+        <div className="grid gap-1.5"><Label>CNPJ</Label><Input maxLength={20} value={f.cnpj} onChange={(e) => setF({ ...f, cnpj: formatCNPJ(e.target.value) })} placeholder="00.000.000/0000-00" /></div>
+        <div className="grid gap-1.5"><Label>Telefone da Empresa</Label><Input maxLength={25} value={f.telefone} onChange={(e) => setF({ ...f, telefone: formatFone(e.target.value) })} placeholder="(00) 0000-0000" /></div>
       </div>
-      <div className="grid gap-1.5"><Label>Endereço Completo</Label><Input value={f.endereco} onChange={(e) => setF({ ...f, endereco: e.target.value })} /></div>
+      <div className="grid gap-1.5"><Label>Endereço Completo</Label><Input maxLength={250} value={f.endereco} onChange={(e) => setF({ ...f, endereco: e.target.value })} /></div>
     </div>
   );
 }
@@ -44,22 +53,45 @@ function CamposFornecedor({ f, setF, comNome = true }: { f: typeof vazio; setF: 
 function Fornecedores() {
   const { fornecedores } = useEstoque();
   const [q, setQ] = useState("");
+  const qDebounced = useDebouncedValue(q, 300);
   const [sel, setSel] = useState<string | null>(null);
   const [novo, setNovo] = useState(false);
   const [f, setF] = useState(vazio);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const list = useMemo(() => {
-    const t = q.trim().toLowerCase();
+    const t = normalizarBuscaSegura(escaparBuscaIlike(qDebounced));
     return t ? fornecedores.filter((x) => x.nome.toLowerCase().includes(t) || x.cnpj.includes(t)) : fornecedores;
-  }, [q, fornecedores]);
+  }, [qDebounced, fornecedores]);
 
   const atual = fornecedores.find((x) => x.id === sel);
   if (atual) return <Detalhe forn={atual} voltar={() => setSel(null)} />;
 
   const criar = () => {
-    if (!f.nome.trim()) { toast.error("Informe o nome da empresa."); return; }
-    setEstado((e) => ({ ...e, fornecedores: [...e.fornecedores, { id: uid(), ...f, nome: f.nome.trim() }] }));
-    toast.success("Fornecedor cadastrado.");
-    setNovo(false);
+    if (isSubmitting) return;
+    const rate = verificarRateLimit("fornecedor", getTenantUserId());
+    if (!rate.permitido) {
+      toast.error(rate.erro);
+      return;
+    }
+
+    const validacao = fornecedorSchema.safeParse(f);
+    if (!validacao.success) {
+      toast.error(validacao.error.issues[0]?.message ?? "Dados do fornecedor inválidos.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      setEstado((e) => ({
+        ...e,
+        fornecedores: [...e.fornecedores, { id: uid(), ...validacao.data }],
+      }));
+      toast.success("Fornecedor cadastrado.");
+      setNovo(false);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -72,7 +104,7 @@ function Fornecedores() {
         <div className="border-b p-5">
           <div className="relative w-full sm:w-80">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nome ou CNPJ…" className="pl-9" />
+            <Input value={q} onChange={(e) => setQ(e.target.value)} maxLength={120} placeholder="Buscar por nome ou CNPJ…" className="pl-9" />
           </div>
         </div>
         <table className="w-full text-sm">
@@ -96,7 +128,10 @@ function Fornecedores() {
         <DialogContent>
           <DialogHeader><DialogTitle>Novo Fornecedor</DialogTitle></DialogHeader>
           <CamposFornecedor f={f} setF={setF} />
-          <DialogFooter><Button variant="outline" onClick={() => setNovo(false)}>Cancelar</Button><Button onClick={criar}>Salvar</Button></DialogFooter>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNovo(false)}>Cancelar</Button>
+            <Button onClick={criar} disabled={isSubmitting}>{isSubmitting ? "Salvando..." : "Salvar"}</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
@@ -105,10 +140,32 @@ function Fornecedores() {
 
 function Detalhe({ forn, voltar }: { forn: Fornecedor; voltar: () => void }) {
   const [f, setF] = useState({ nome: forn.nome, cnpj: forn.cnpj, telefone: forn.telefone, endereco: forn.endereco });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const salvar = () => {
-    if (!f.nome.trim()) { toast.error("Informe o nome da empresa."); return; }
-    setEstado((e) => ({ ...e, fornecedores: e.fornecedores.map((x) => x.id === forn.id ? { ...x, ...f } : x) }));
-    toast.success("Dados atualizados.");
+    if (isSubmitting) return;
+    const rate = verificarRateLimit("fornecedor", getTenantUserId());
+    if (!rate.permitido) {
+      toast.error(rate.erro);
+      return;
+    }
+
+    const validacao = fornecedorSchema.safeParse(f);
+    if (!validacao.success) {
+      toast.error(validacao.error.issues[0]?.message ?? "Dados inválidos.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      setEstado((e) => ({
+        ...e,
+        fornecedores: e.fornecedores.map((x) => (x.id === forn.id ? { ...x, ...validacao.data } : x)),
+      }));
+      toast.success("Dados atualizados.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   return (
     <>
@@ -122,7 +179,9 @@ function Detalhe({ forn, voltar }: { forn: Fornecedor; voltar: () => void }) {
         <TabsContent value="dados">
           <div className="max-w-2xl rounded-xl border bg-card p-6 shadow-card">
             <CamposFornecedor f={f} setF={setF} />
-            <Button className="mt-6" onClick={salvar}>Salvar alterações</Button>
+            <Button className="mt-6" onClick={salvar} disabled={isSubmitting}>
+              {isSubmitting ? "Salvando..." : "Salvar alterações"}
+            </Button>
           </div>
         </TabsContent>
         <TabsContent value="notas"><Notas fornecedorId={forn.id} /></TabsContent>
@@ -142,23 +201,57 @@ function Notas({ fornecedorId }: { fornecedorId: string }) {
   const [numero, setNumero] = useState("");
   const [linhas, setLinhas] = useState<Linha[]>([novaLinha()]);
   const [aberta, setAberta] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const itens = linhas.map((l) => ({ produtoId: l.produtoId, quantidade: Math.round(num(l.quantidade)), valorUnit: num(l.valorUnit) }));
   const total = somaItens(itens);
-  const upd = (k: string, p: Partial<Linha>) => setLinhas((ls) => ls.map((l) => l.key === k ? { ...l, ...p } : l));
+  const upd = (k: string, p: Partial<Linha>) => setLinhas((ls) => ls.map((l) => (l.key === k ? { ...l, ...p } : l)));
   const nomeProd = (id: string) => produtos.find((p) => p.id === id)?.nome ?? "Produto removido";
 
   const salvar = () => {
+    if (isSubmitting) return;
+    const rate = verificarRateLimit("fornecedor", getTenantUserId());
+    if (!rate.permitido) {
+      toast.error(rate.erro);
+      return;
+    }
+
     const validos = itens.filter((i) => i.produtoId && i.quantidade > 0);
-    if (!numero.trim()) { toast.error("Informe o número da nota."); return; }
-    if (!validos.length) { toast.error("Adicione ao menos um produto com quantidade."); return; }
-    setEstado((e) => ({
-      ...e,
-      produtos: aplicarCompra(e.produtos, validos),
-      notas: [...e.notas, { id: uid(), fornecedorId, data, numero: numero.trim(), itens: validos, total: somaItens(validos) }],
-    }));
-    toast.success("Nota salva. Estoque e custos atualizados.");
-    setNumero(""); setLinhas([novaLinha()]); setData(hoje);
+    const validacao = notaCompraSchema.safeParse({
+      numero,
+      data,
+      itens: validos,
+    });
+
+    if (!validacao.success) {
+      toast.error(validacao.error.issues[0]?.message ?? "Verifique os dados da nota.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      setEstado((e) => ({
+        ...e,
+        produtos: aplicarCompra(e.produtos, validacao.data.itens),
+        notas: [
+          ...e.notas,
+          {
+            id: uid(),
+            fornecedorId,
+            data: validacao.data.data,
+            numero: validacao.data.numero,
+            itens: validacao.data.itens,
+            total: somaItens(validacao.data.itens),
+          },
+        ],
+      }));
+      toast.success("Nota salva. Estoque e custos atualizados.");
+      setNumero("");
+      setLinhas([novaLinha()]);
+      setData(hoje);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -167,7 +260,7 @@ function Notas({ fornecedorId }: { fornecedorId: string }) {
         <h3 className="mb-4 font-display text-lg font-semibold">Nova Nota de Compra</h3>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="grid gap-1.5"><Label>Data da Compra</Label><Input type="date" value={data} onChange={(e) => setData(e.target.value)} /></div>
-          <div className="grid gap-1.5"><Label>Número da Nota</Label><Input value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="Ex.: 000123" /></div>
+          <div className="grid gap-1.5"><Label>Número da Nota</Label><Input maxLength={60} value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="Ex.: 000123" /></div>
         </div>
         <div className="mt-5 space-y-2">
           <div className="hidden grid-cols-12 gap-2 text-xs uppercase text-muted-foreground sm:grid">
@@ -181,7 +274,7 @@ function Notas({ fornecedorId }: { fornecedorId: string }) {
               </select>
               <Input className="col-span-4 sm:col-span-2" type="number" min={1} value={l.quantidade} onChange={(e) => upd(l.key, { quantidade: e.target.value })} />
               <Input className="col-span-4 sm:col-span-2" inputMode="decimal" placeholder="0,00" value={l.valorUnit} onChange={(e) => upd(l.key, { valorUnit: e.target.value })} />
-              <span className="col-span-3 text-sm font-medium sm:col-span-2">{brl(itens[i]!.quantidade * itens[i]!.valorUnit)}</span>
+              <span className="col-span-3 text-sm font-medium sm:col-span-2">{brl(Number((itens[i]!.quantidade * itens[i]!.valorUnit).toFixed(2)))}</span>
               <Button variant="ghost" size="icon" className="col-span-1" disabled={linhas.length === 1} onClick={() => setLinhas((ls) => ls.filter((x) => x.key !== l.key))} aria-label="Remover item"><Trash2 className="size-4" /></Button>
             </div>
           ))}
@@ -189,7 +282,7 @@ function Notas({ fornecedorId }: { fornecedorId: string }) {
         </div>
         <div className="mt-6 flex items-center justify-between border-t pt-4">
           <div><p className="text-xs uppercase text-muted-foreground">Total da Nota</p><p className="font-display text-2xl font-bold text-primary">{brl(total)}</p></div>
-          <Button onClick={salvar}>Salvar Nota</Button>
+          <Button onClick={salvar} disabled={isSubmitting}>{isSubmitting ? "Salvando..." : "Salvar Nota"}</Button>
         </div>
       </div>
       <div className="rounded-xl border bg-card p-6 shadow-card lg:col-span-2">
@@ -204,7 +297,7 @@ function Notas({ fornecedorId }: { fornecedorId: string }) {
               </button>
               {aberta === n.id && (
                 <ul className="border-t px-3 py-2 text-sm">
-                  {n.itens.map((it, i) => <li key={i} className="flex justify-between py-0.5"><span>{it.quantidade}× {nomeProd(it.produtoId)}</span><span className="text-muted-foreground">{brl(it.quantidade * it.valorUnit)}</span></li>)}
+                  {n.itens.map((it, i) => <li key={i} className="flex justify-between py-0.5"><span>{it.quantidade}× {nomeProd(it.produtoId)}</span><span className="text-muted-foreground">{brl(Number((it.quantidade * it.valorUnit).toFixed(2)))}</span></li>)}
                 </ul>
               )}
             </li>

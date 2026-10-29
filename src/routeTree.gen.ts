@@ -10,16 +10,27 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CaixaRouteImport } from './routes/caixa'
 import { Route as ClientesRouteImport } from './routes/clientes'
 import { Route as EstoqueRouteImport } from './routes/estoque'
+import { Route as FinanceiroRouteImport } from './routes/financeiro'
 import { Route as FornecedoresRouteImport } from './routes/fornecedores'
+import { Route as GerenciarLoginsRouteImport } from './routes/gerenciar-logins'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as NovaOsRouteImport } from './routes/nova-os'
 import { Route as OrdensRouteImport } from './routes/ordens'
+import { Route as PerfilRouteImport } from './routes/perfil'
+import { Route as PersonalizacaoRouteImport } from './routes/personalizacao'
 import { Route as VendasRouteImport } from './routes/vendas'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CaixaRoute = CaixaRouteImport.update({
+  id: '/caixa',
+  path: '/caixa',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ClientesRoute = ClientesRouteImport.update({
@@ -32,9 +43,24 @@ const EstoqueRoute = EstoqueRouteImport.update({
   path: '/estoque',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FinanceiroRoute = FinanceiroRouteImport.update({
+  id: '/financeiro',
+  path: '/financeiro',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FornecedoresRoute = FornecedoresRouteImport.update({
   id: '/fornecedores',
   path: '/fornecedores',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GerenciarLoginsRoute = GerenciarLoginsRouteImport.update({
+  id: '/gerenciar-logins',
+  path: '/gerenciar-logins',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NovaOsRoute = NovaOsRouteImport.update({
@@ -47,6 +73,16 @@ const OrdensRoute = OrdensRouteImport.update({
   path: '/ordens',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PerfilRoute = PerfilRouteImport.update({
+  id: '/perfil',
+  path: '/perfil',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PersonalizacaoRoute = PersonalizacaoRouteImport.update({
+  id: '/personalizacao',
+  path: '/personalizacao',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const VendasRoute = VendasRouteImport.update({
   id: '/vendas',
   path: '/vendas',
@@ -55,69 +91,111 @@ const VendasRoute = VendasRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/caixa': typeof CaixaRoute
   '/clientes': typeof ClientesRoute
   '/estoque': typeof EstoqueRoute
+  '/financeiro': typeof FinanceiroRoute
   '/fornecedores': typeof FornecedoresRoute
+  '/gerenciar-logins': typeof GerenciarLoginsRoute
+  '/login': typeof LoginRoute
   '/nova-os': typeof NovaOsRoute
   '/ordens': typeof OrdensRoute
+  '/perfil': typeof PerfilRoute
+  '/personalizacao': typeof PersonalizacaoRoute
   '/vendas': typeof VendasRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/caixa': typeof CaixaRoute
   '/clientes': typeof ClientesRoute
   '/estoque': typeof EstoqueRoute
+  '/financeiro': typeof FinanceiroRoute
   '/fornecedores': typeof FornecedoresRoute
+  '/gerenciar-logins': typeof GerenciarLoginsRoute
+  '/login': typeof LoginRoute
   '/nova-os': typeof NovaOsRoute
   '/ordens': typeof OrdensRoute
+  '/perfil': typeof PerfilRoute
+  '/personalizacao': typeof PersonalizacaoRoute
   '/vendas': typeof VendasRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/caixa': typeof CaixaRoute
   '/clientes': typeof ClientesRoute
   '/estoque': typeof EstoqueRoute
+  '/financeiro': typeof FinanceiroRoute
   '/fornecedores': typeof FornecedoresRoute
+  '/gerenciar-logins': typeof GerenciarLoginsRoute
+  '/login': typeof LoginRoute
   '/nova-os': typeof NovaOsRoute
   '/ordens': typeof OrdensRoute
+  '/perfil': typeof PerfilRoute
+  '/personalizacao': typeof PersonalizacaoRoute
   '/vendas': typeof VendasRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/caixa'
     | '/clientes'
     | '/estoque'
+    | '/financeiro'
     | '/fornecedores'
+    | '/gerenciar-logins'
+    | '/login'
     | '/nova-os'
     | '/ordens'
+    | '/perfil'
+    | '/personalizacao'
     | '/vendas'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/caixa'
     | '/clientes'
     | '/estoque'
+    | '/financeiro'
     | '/fornecedores'
+    | '/gerenciar-logins'
+    | '/login'
     | '/nova-os'
     | '/ordens'
+    | '/perfil'
+    | '/personalizacao'
     | '/vendas'
   id:
     | '__root__'
     | '/'
+    | '/caixa'
     | '/clientes'
     | '/estoque'
+    | '/financeiro'
     | '/fornecedores'
+    | '/gerenciar-logins'
+    | '/login'
     | '/nova-os'
     | '/ordens'
+    | '/perfil'
+    | '/personalizacao'
     | '/vendas'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CaixaRoute: typeof CaixaRoute
   ClientesRoute: typeof ClientesRoute
   EstoqueRoute: typeof EstoqueRoute
+  FinanceiroRoute: typeof FinanceiroRoute
   FornecedoresRoute: typeof FornecedoresRoute
+  GerenciarLoginsRoute: typeof GerenciarLoginsRoute
+  LoginRoute: typeof LoginRoute
   NovaOsRoute: typeof NovaOsRoute
   OrdensRoute: typeof OrdensRoute
+  PerfilRoute: typeof PerfilRoute
+  PersonalizacaoRoute: typeof PersonalizacaoRoute
   VendasRoute: typeof VendasRoute
 }
 
@@ -128,6 +206,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/caixa': {
+      id: '/caixa'
+      path: '/caixa'
+      fullPath: '/caixa'
+      preLoaderRoute: typeof CaixaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/clientes': {
@@ -144,11 +229,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EstoqueRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/financeiro': {
+      id: '/financeiro'
+      path: '/financeiro'
+      fullPath: '/financeiro'
+      preLoaderRoute: typeof FinanceiroRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/fornecedores': {
       id: '/fornecedores'
       path: '/fornecedores'
       fullPath: '/fornecedores'
       preLoaderRoute: typeof FornecedoresRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gerenciar-logins': {
+      id: '/gerenciar-logins'
+      path: '/gerenciar-logins'
+      fullPath: '/gerenciar-logins'
+      preLoaderRoute: typeof GerenciarLoginsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/nova-os': {
@@ -165,6 +271,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrdensRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/perfil': {
+      id: '/perfil'
+      path: '/perfil'
+      fullPath: '/perfil'
+      preLoaderRoute: typeof PerfilRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/personalizacao': {
+      id: '/personalizacao'
+      path: '/personalizacao'
+      fullPath: '/personalizacao'
+      preLoaderRoute: typeof PersonalizacaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/vendas': {
       id: '/vendas'
       path: '/vendas'
@@ -177,11 +297,17 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CaixaRoute: CaixaRoute,
   ClientesRoute: ClientesRoute,
   EstoqueRoute: EstoqueRoute,
+  FinanceiroRoute: FinanceiroRoute,
   FornecedoresRoute: FornecedoresRoute,
+  GerenciarLoginsRoute: GerenciarLoginsRoute,
+  LoginRoute: LoginRoute,
   NovaOsRoute: NovaOsRoute,
   OrdensRoute: OrdensRoute,
+  PerfilRoute: PerfilRoute,
+  PersonalizacaoRoute: PersonalizacaoRoute,
   VendasRoute: VendasRoute,
 }
 export const routeTree = rootRouteImport

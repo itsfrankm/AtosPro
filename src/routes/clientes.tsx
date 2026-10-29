@@ -1,19 +1,28 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { History, Pencil, Plus, Search } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { clientes as inicial, ordens, brl, dataBR, statusClass, type Cliente } from "@/lib/os-data";
+import { useClientes, salvarCliente, useOrdens, brl, dataBR, statusClass, type Cliente } from "@/lib/os-data";
+import {
+  useDebouncedValue,
+  escaparBuscaIlike,
+  normalizarBuscaSegura,
+  clienteSchema,
+  verificarRateLimit,
+} from "@/lib/security";
+import { getTenantUserId } from "@/lib/auth";
 
 export const Route = createFileRoute("/clientes")({
   head: () => ({
     meta: [
-      { title: "Clientes · TecnoFix OS" },
+      { title: "AtosPro" },
       { name: "description", content: "Cadastro de clientes da assistência técnica." },
-      { property: "og:title", content: "Clientes · TecnoFix OS" },
+      { property: "og:title", content: "AtosPro" },
       { property: "og:description", content: "Cadastro de clientes da assistência técnica." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -33,21 +42,26 @@ const campos: [keyof typeof vazio, string, string, boolean?][] = [
 ];
 
 function Clientes() {
-  const [lista, setLista] = useState<Cliente[]>(inicial);
+  const ordens = useOrdens();
+  const lista = useClientes();
   const [q, setQ] = useState("");
+  const qDebounced = useDebouncedValue(q, 300);
   const [editando, setEditando] = useState<Cliente | null>(null);
   const [aberto, setAberto] = useState(false);
   const [form, setForm] = useState(vazio);
   const [historico, setHistorico] = useState<Cliente | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const filtrados = useMemo(() => {
-    const t = q.trim().toLowerCase();
+    const t = normalizarBuscaSegura(escaparBuscaIlike(qDebounced));
     const d = t.replace(/\D/g, "");
     if (!t) return lista;
     return lista.filter(
-      (c) => c.nome.toLowerCase().includes(t) || (d && (c.documento.replace(/\D/g, "").includes(d) || c.whatsapp.replace(/\D/g, "").includes(d))),
+      (c) =>
+        c.nome.toLowerCase().includes(t) ||
+        (d && (c.documento.replace(/\D/g, "").includes(d) || c.whatsapp.replace(/\D/g, "").includes(d))),
     );
-  }, [q, lista]);
+  }, [qDebounced, lista]);
 
   const abrir = (c?: Cliente) => {
     setEditando(c ?? null);
@@ -57,10 +71,33 @@ function Clientes() {
 
   const salvar = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.nome.trim()) return;
-    if (editando) setLista((l) => l.map((c) => (c.id === editando.id ? { ...editando, ...form } : c)));
-    else setLista((l) => [{ id: crypto.randomUUID(), ...form }, ...l]);
-    setAberto(false);
+    if (isSubmitting) return;
+
+    const rate = verificarRateLimit("cliente", getTenantUserId());
+    if (!rate.permitido) {
+      toast.error(rate.erro);
+      return;
+    }
+
+    const validacao = clienteSchema.safeParse(form);
+    if (!validacao.success) {
+      toast.error(validacao.error.issues[0]?.message ?? "Dados do cliente inválidos.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      if (editando) {
+        salvarCliente({ ...editando, ...validacao.data });
+        toast.success("Dados do cliente atualizados.");
+      } else {
+        salvarCliente({ id: crypto.randomUUID(), ...validacao.data });
+        toast.success("Cliente cadastrado com sucesso.");
+      }
+      setAberto(false);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const osDo = (c: Cliente) => ordens.filter((o) => o.cliente === c.nome);
@@ -76,7 +113,13 @@ function Clientes() {
         <div className="border-b p-5">
           <div className="relative w-full sm:w-96">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nome, CPF/CNPJ ou WhatsApp…" className="pl-9" />
+            <Input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              maxLength={120}
+              placeholder="Buscar por nome, CPF/CNPJ ou WhatsApp…"
+              className="pl-9"
+            />
           </div>
         </div>
         <div className="overflow-x-auto">
@@ -119,13 +162,22 @@ function Clientes() {
             {campos.map(([k, l, p, full]) => (
               <div key={k} className={`grid gap-1.5 ${full ? "sm:col-span-2" : ""}`}>
                 <Label htmlFor={k}>{l}</Label>
-                <Input id={k} placeholder={p} value={form[k]} required={k === "nome"} type={k === "email" ? "email" : "text"}
-                  onChange={(e) => setForm((f) => ({ ...f, [k]: e.target.value }))} />
+                <Input
+                  id={k}
+                  placeholder={p}
+                  value={form[k]}
+                  required={k === "nome"}
+                  maxLength={k === "endereco" ? 250 : 160}
+                  type={k === "email" ? "email" : "text"}
+                  onChange={(e) => setForm((f) => ({ ...f, [k]: e.target.value }))}
+                />
               </div>
             ))}
             <DialogFooter className="sm:col-span-2">
               <Button type="button" variant="outline" onClick={() => setAberto(false)}>Cancelar</Button>
-              <Button type="submit">{editando ? "Salvar alterações" : "Cadastrar cliente"}</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Salvando..." : editando ? "Salvar alterações" : "Cadastrar cliente"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

@@ -2,14 +2,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Wrench, FileText, CheckCircle2, Wallet } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { OSTable } from "@/components/OSTable";
-import { ordens, brl } from "@/lib/os-data";
+import { useOrdens, isOSCancelada, isOSFinalizada, brl } from "@/lib/os-data";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Painel Geral · TecnoFix OS" },
+      { title: "AtosPro" },
       { name: "description", content: "Resumo das ordens de serviço da assistência técnica." },
-      { property: "og:title", content: "Painel Geral · TecnoFix OS" },
+      { property: "og:title", content: "AtosPro" },
       { property: "og:description", content: "Resumo das ordens de serviço da assistência técnica." },
     ],
   }),
@@ -17,13 +17,25 @@ export const Route = createFileRoute("/")({
 });
 
 function Painel() {
+  const ordens = useOrdens();
+  const hoje = new Date();
+  const anoMesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}`;
+
   const count = (s: string) => ordens.filter((o) => o.status === s).length;
-  const total = ordens.reduce((a, o) => a + o.valor, 0);
+  const concluidasCount = ordens.filter((o) => isOSFinalizada(o.status) && !isOSCancelada(o.status)).length;
+
+  const totalMes = ordens
+    .filter((o) => {
+      const dataRef = (o.finalizacao && o.finalizacao.trim() ? o.finalizacao : o.entrada).slice(0, 7);
+      return dataRef === anoMesAtual && isOSFinalizada(o.status) && !isOSCancelada(o.status);
+    })
+    .reduce((a, o) => a + (o.valor || 0), 0);
+
   const cards = [
     { label: "Na Bancada", value: count("Na Bancada"), icon: Wrench, tone: "text-status-bench bg-status-bench/10" },
     { label: "Em Orçamento", value: count("Em Orçamento"), icon: FileText, tone: "text-status-quote bg-status-quote/10" },
-    { label: "Concluídas", value: count("Concluída"), icon: CheckCircle2, tone: "text-status-done bg-status-done/10" },
-    { label: "Total do Mês", value: brl(total), icon: Wallet, tone: "text-primary bg-primary/10" },
+    { label: "Concluídas", value: concluidasCount, icon: CheckCircle2, tone: "text-status-done bg-status-done/10" },
+    { label: "Total do Mês", value: brl(totalMes), icon: Wallet, tone: "text-primary bg-primary/10" },
   ];
   return (
     <>

@@ -14,4 +14,15 @@ describe("App routing", () => {
 
     expect(matches.at(-1)?.routeId).not.toBe(rootRouteId);
   });
+
+  it("matches /caixa, /financeiro, /perfil, /personalizacao, /login, and /gerenciar-logins routes", () => {
+    const router = createRouter({ routeTree, context: { queryClient: new QueryClient() } });
+
+    expect(router.matchRoutes("/caixa").at(-1)?.routeId).toBe("/caixa");
+    expect(router.matchRoutes("/financeiro").at(-1)?.routeId).toBe("/financeiro");
+    expect(router.matchRoutes("/perfil").at(-1)?.routeId).toBe("/perfil");
+    expect(router.matchRoutes("/personalizacao").at(-1)?.routeId).toBe("/personalizacao");
+    expect(router.matchRoutes("/login").at(-1)?.routeId).toBe("/login");
+    expect(router.matchRoutes("/gerenciar-logins").at(-1)?.routeId).toBe("/gerenciar-logins");
+  });
 });

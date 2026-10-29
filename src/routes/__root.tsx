@@ -4,16 +4,26 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useLocation,
+  useNavigate,
   HeadContent,
   Scripts,
   type ErrorComponentProps,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Toaster } from "@/components/ui/sonner";
+import { useEstoque, aparenciaInicial, aplicarAparenciaNoDOM } from "@/lib/estoque";
+import {
+  useAuth,
+  registrarAtividadeSessao,
+  verificarExpiracaoSessaoPorInatividade,
+} from "@/lib/auth";
+import { PaginaLogin } from "@/components/PaginaLogin";
+import { toast } from "sonner";
 
 function NotFoundComponent() {
   return (
@@ -80,7 +90,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "TecnoFix OS" },
+      { title: "AtosPro" },
+      { property: "og:title", content: "AtosPro" },
       { name: "description", content: "Sistema de Ordem de Serviço para Assistência Técnica" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -92,7 +103,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "icon", href: "/favicon.png", type: "image/png" },
+      { rel: "shortcut icon", href: "/favicon.png", type: "image/png" },
+      { rel: "apple-touch-icon", href: "/favicon.png" },
     ],
   }),
   shellComponent: RootShell,
@@ -103,7 +116,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="pt-BR">
       <head>
         <HeadContent />
       </head>
@@ -117,6 +130,105 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const { aparencia = aparenciaInicial } = useEstoque();
+  const { usuarioAtual } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  const sessaoAtivaValida = Boolean(usuarioAtual && usuarioAtual.ativo);
+
+  // Mantém a URL sempre fixa na raiz "/" e document.title "AtosPro", preservando a aba ativa no sessionStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.history.replaceState(null, "", "/");
+      if (sessaoAtivaValida && location.pathname !== "/login") {
+        try {
+          const fullRoute = location.pathname + (location.searchStr ? `?${location.searchStr}` : "");
+          window.sessionStorage.setItem("atospro_active_route", fullRoute);
+        } catch {
+          // ignora storage restrito
+        }
+      }
+    }
+    if (typeof document !== "undefined" && document.title !== "AtosPro") {
+      document.title = "AtosPro";
+    }
+  }, [location.pathname, location.searchStr, location.hash, sessaoAtivaValida]);
+
+  useEffect(() => {
+    aplicarAparenciaNoDOM(aparencia);
+  }, [aparencia]);
+
+  useEffect(() => {
+    if (isMounted && !sessaoAtivaValida && location.pathname !== "/login") {
+      navigate({ to: "/login" });
+    }
+  }, [isMounted, sessaoAtivaValida, location.pathname, navigate]);
+
+  // Expiração automática de sessão após 30 minutos de inatividade
+  useEffect(() => {
+    if (!sessaoAtivaValida) return;
+
+    registrarAtividadeSessao();
+
+    const aoInteragir = () => {
+      registrarAtividadeSessao();
+    };
+
+    const eventos: Array<keyof WindowEventMap> = [
+      "mousemove",
+      "mousedown",
+      "keydown",
+      "touchstart",
+      "scroll",
+      "click",
+    ];
+    for (const ev of eventos) {
+      window.addEventListener(ev, aoInteragir, { passive: true });
+    }
+
+    const verificador = window.setInterval(() => {
+      if (verificarExpiracaoSessaoPorInatividade()) {
+        toast.warning("Sua sessão expirou após 30 minutos de inatividade. Faça login novamente.");
+        navigate({ to: "/login" });
+      }
+    }, 15_000);
+
+    return () => {
+      for (const ev of eventos) {
+        window.removeEventListener(ev, aoInteragir);
+      }
+      window.clearInterval(verificador);
+    };
+  }, [sessaoAtivaValida, navigate]);
+
+  // Durante a primeira renderização do SSR e antes da hidratação no cliente, exibe indicador neutro para evitar Hydration Mismatch
+  if (!isMounted) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <div className="flex min-h-screen items-center justify-center bg-background">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+        <Toaster richColors />
+      </QueryClientProvider>
+    );
+  }
+
+  // Se não houver login ativo e habilitado, exibe exclusivamente a página de Login
+  if (!sessaoAtivaValida || location.pathname === "/login") {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <PaginaLogin />
+        <Toaster richColors />
+      </QueryClientProvider>
+    );
+  }
 
   return (
     <QueryClientProvider client={queryClient}>

@@ -1,26 +1,39 @@
-# Atospro
+# AtosPro - Sistema de Ordens de Serviço e Gestão Comercial
 
-Crie a estrutura base (App Shell) de um sistema web moderno de Ordem de Serviço para Assistência Técnica em português do Brasil. Inclua uma Sidebar fixa à esquerda com navegação para: "Painel Geral", "Nova OS", "Ordens de Serviço" e "Clientes". No Painel Geral, adicione 4 cards de resumo no topo ("Na Bancada", "Em Orçamento", "Concluídas", "Total do Mês") e uma tabela de "Ordens Recentes" com busca rápida por número da OS, nome do cliente ou aparelho. Use um design limpo com shadcn/ui e Tailwind.
+Sistema web moderno e completo para assistência técnica e gestão comercial (Ordens de Serviço, PDV/Vendas com Cupom Térmico 80mm, Controle de Estoque, Gestão Financeira com Dashboards, Caixa e Clientes).
 
-This project was built with [Lovable](https://lovable.dev).
+## 🚀 Funcionalidades
 
-**Live app**: https://atospro.lovable.app
+- **Ordens de Serviço (OS):** Emissão e impressão otimizada em folha A4 (1 página), controle de status (Na Bancada, Em Orçamento, Concluída, etc.), laudos técnicos e custos de peças.
+- **Ponto de Venda (PDV / Vendas):** Vendas rápidas, múltiplos meios de pagamento combinados, cálculo automático de troco e impressão de Cupom Térmico (80mm).
+- **Controle de Estoque e Compras:** Cadastro de produtos com código SKU, custos, preços de venda, margem de lucro e notas de compra de fornecedores.
+- **Gestão Financeira Consolidada:** Dashboards Diário, Semanal, Mensal e Anual, métricas de faturamento, lucro líquido real e controle da gaveta de Caixa.
+- **Módulo de Caixa:** Abertura, fechamento, entradas avulsas (suprimentos) e retiradas (sangrias).
+- **Segurança e Multi-Tenant:** Autenticação protegida, controle de acessos por papel (Admin / Colaborador), Row Level Security (RLS) no Supabase e proteção contra DoS.
 
-## Build with Lovable
+## 🛠️ Tecnologias
 
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/6dcc3289-aa1d-4cfc-996d-124aa44c2770).
+- **Frontend:** React 19, TypeScript, Tailwind CSS, shadcn/ui, TanStack Router.
+- **Gráficos e Impressão:** Recharts, Lucide Icons, html2canvas-pro, jsPDF.
+- **Backend / Banco de Dados:** Supabase (PostgreSQL com RLS, Edge Functions, Auth REST API).
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
+## 📦 Como Rodar Localmente
 
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
-
+1. Clone o repositório:
 ```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
+git clone https://github.com/itsfrankm/atospro.git
+cd atospro
+```
+
+2. Instale as dependências:
+```sh
+npm install
+```
+
+3. Configure as variáveis de ambiente:
+Copie o arquivo `.env.example` para `.env` e preencha suas credenciais do Supabase caso queira sincronização em nuvem (ou utilize o modo mock offline padrão).
+
+4. Inicie o servidor de desenvolvimento:
+```sh
 npm run dev
 ```

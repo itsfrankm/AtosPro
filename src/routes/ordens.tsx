@@ -5,9 +5,9 @@ import { OSTable } from "@/components/OSTable";
 export const Route = createFileRoute("/ordens")({
   head: () => ({
     meta: [
-      { title: "Ordens de Serviço · TecnoFix OS" },
+      { title: "AtosPro" },
       { name: "description", content: "Lista completa das ordens de serviço." },
-      { property: "og:title", content: "Ordens de Serviço · TecnoFix OS" },
+      { property: "og:title", content: "AtosPro" },
       { property: "og:description", content: "Lista completa das ordens de serviço." },
     ],
   }),

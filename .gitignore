@@ -1,32 +1,85 @@
-# Logs
-logs
+# ==============================================================================
+# ATOSPRO - GITIGNORE
+# ==============================================================================
+
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnpm-store/
+
+# Production Build Outputs & Bundler Cache
+dist/
+dist-ssr/
+build/
+.output/
+.vinxi/
+.tanstack/
+.nitro/
+.vite/
+.cache/
+*.tsbuildinfo
+
+# Cloudflare / Nitro / Wrangler
+.wrangler/
+.dev.vars
+
+# Environment Variables & Sensitive Credentials
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.local
+*.pem
+*.key
+*.cert
+
+# Logs & Debugging
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+vite.log*
 
-node_modules
-dist
-dist-ssr
-.output
-.vinxi
-.tanstack/**
-.nitro
-*.local
+# Testing & Coverage
+coverage/
+.nyc_output/
+.vitest/
 
-# Wrangler / Cloudflare
-.wrangler/
-.dev.vars
-
-# Editor directories and files
+# Editor & IDE Directories
 .vscode/*
 !.vscode/extensions.json
-.idea
-.DS_Store
+!.vscode/settings.json
+.idea/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+*.sublime-project
+*.sublime-workspace
+
+# OS Generated Files (Windows & macOS)
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Temporary & Backup Files
+tmp/
+temp/
+*.tmp
+*.bak
