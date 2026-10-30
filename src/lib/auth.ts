@@ -296,6 +296,7 @@ async function sincronizarTentativaSupabase(email: string, sucesso: boolean): Pr
       method: "POST",
       headers: {
         apikey: key,
+        Authorization: `Bearer ${key}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ _email: email, _success: sucesso }),
@@ -388,12 +389,13 @@ export function getSupabaseConfig() {
   let url = (import.meta.env["VITE_SUPABASE_URL"] as string | undefined)?.trim();
   let key = (import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"] as string | undefined)?.trim();
 
-  // Se a URL ou chave estiverem vazias ou contiverem qualquer link legado da Lovable,
-  // utiliza automaticamente as credenciais do seu Supabase proprio.
-  if (!url || url.includes("lovable.cloud")) {
+  // Se a URL estiver vazia, for da Lovable legada ou diferente do projeto oficial do Supabase:
+  if (!url || url.includes("lovable.cloud") || !url.includes("bnurkbuijtundaaqrgrl")) {
     url = DEFAULT_SUPABASE_URL;
   }
-  if (!key || key.includes("lovable")) {
+
+  // Se a chave estiver vazia, nao pertencer a este projeto ou for o token legado da Lovable:
+  if (!key || (!key.includes("bnurkbuijtundaaqrgrl") && !key.startsWith("sb_publishable_"))) {
     key = DEFAULT_SUPABASE_ANON_KEY;
   }
 
@@ -576,6 +578,7 @@ async function invocarEdgeFunctionAdmin(payload: Record<string, unknown>): Promi
         method: "POST",
         headers: {
           apikey: key,
+          Authorization: `Bearer ${key}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -607,7 +610,13 @@ async function invocarEdgeFunctionAdmin(payload: Record<string, unknown>): Promi
       }
     }
 
-    const restHeaders = authCfg ? authCfg.headers : { apikey: key, "Content-Type": "application/json" };
+    const restHeaders = authCfg
+      ? authCfg.headers
+      : {
+          apikey: key,
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+        };
 
     if (payload["action"] === "update") {
       await fetch(`${baseUrl}/rest/v1/profiles?user_id=eq.${payload["userId"]}`, {
@@ -718,6 +727,7 @@ export async function realizarLogin(
         method: "POST",
         headers: {
           apikey: key,
+          Authorization: `Bearer ${key}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ email, password: senha }),
@@ -845,6 +855,7 @@ export async function realizarLogin(
           method: "POST",
           headers: {
             apikey: key,
+            Authorization: `Bearer ${key}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
