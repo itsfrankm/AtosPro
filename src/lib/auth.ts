@@ -380,9 +380,23 @@ function formatarDataHoraAtual(iso?: string): string {
   return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
 }
 
+const DEFAULT_SUPABASE_URL = "https://bnurkbuijtundaaqrgrl.supabase.co";
+const DEFAULT_SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJudXJrYnVpanR1bmRhYXFyZ3JsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzNTg1NzYsImV4cCI6MjEwODkzNDU3Nn0.dD20l_JEtyqf_7g6TXzLO9oHTC-GwjYJIXXQgXRYbW8";
+
 export function getSupabaseConfig() {
-  const url = import.meta.env["VITE_SUPABASE_URL"] as string | undefined;
-  const key = import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"] as string | undefined;
+  let url = (import.meta.env["VITE_SUPABASE_URL"] as string | undefined)?.trim();
+  let key = (import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"] as string | undefined)?.trim();
+
+  // Se a URL ou chave estiverem vazias ou contiverem qualquer link legado da Lovable,
+  // utiliza automaticamente as credenciais do seu Supabase proprio.
+  if (!url || url.includes("lovable.cloud")) {
+    url = DEFAULT_SUPABASE_URL;
+  }
+  if (!key || key.includes("lovable")) {
+    key = DEFAULT_SUPABASE_ANON_KEY;
+  }
+
   return { url, key };
 }
 
