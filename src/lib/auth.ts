@@ -292,7 +292,7 @@ async function sincronizarTentativaSupabase(email: string, sucesso: boolean): Pr
   const { url, key } = getSupabaseConfig();
   if (!url || !key) return;
   try {
-    await fetch(`${url.replace(/\/+$/, "")}/rest/v1/rpc/register_login_attempt`, {
+    await fetch(`${url.replace(/\/+$/, "")}/rest/v1/rpc/register_login_attempt?apikey=${encodeURIComponent(key)}`, {
       method: "POST",
       headers: {
         apikey: key,
@@ -574,7 +574,7 @@ async function invocarEdgeFunctionAdmin(payload: Record<string, unknown>): Promi
       const password = String(payload["password"] || "");
       const nome = String(payload["nome"] || "");
 
-      const signupResp = await fetch(`${baseUrl}/auth/v1/signup`, {
+      const signupResp = await fetch(`${baseUrl}/auth/v1/signup?apikey=${encodeURIComponent(key)}`, {
         method: "POST",
         headers: {
           apikey: key,
@@ -723,7 +723,7 @@ export async function realizarLogin(
   const { url, key } = getSupabaseConfig();
   if (url && key) {
     try {
-      const resp = await fetch(`${url.replace(/\/+$/, "")}/auth/v1/token?grant_type=password`, {
+      const resp = await fetch(`${url.replace(/\/+$/, "")}/auth/v1/token?grant_type=password&apikey=${encodeURIComponent(key)}`, {
         method: "POST",
         headers: {
           apikey: key,
@@ -851,7 +851,7 @@ export async function realizarLogin(
     // Se temos conexão com Supabase e o admin padrão logou, tenta provisioná-lo para obter accessToken
     if (url && key && ehAdmin && !getAccessToken()) {
       try {
-        const signupResp = await fetch(`${url.replace(/\/+$/, "")}/auth/v1/signup`, {
+        const signupResp = await fetch(`${url.replace(/\/+$/, "")}/auth/v1/signup?apikey=${encodeURIComponent(key)}`, {
           method: "POST",
           headers: {
             apikey: key,
