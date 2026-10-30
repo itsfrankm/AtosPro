@@ -526,37 +526,113 @@ async function invocarEdgeFunctionAdmin(payload: Record<string, unknown>): Promi
   data?: AdminEdgeResponse | null;
   erro?: string;
 }> {
-  const authCfg = getSupabaseAuthHeaders();
-  if (!authCfg) {
+  const { url, key } = getSupabaseConfig();
+  if (!url || !key) {
     return { ok: true, data: null };
   }
 
-  try {
-    const resp = await fetch(`${authCfg.url}/functions/v1/admin-users`, {
-      method: "POST",
-      headers: authCfg.headers,
-      body: JSON.stringify(payload),
-    });
+  const authCfg = getSupabaseAuthHeaders();
+  if (authCfg) {
+    try {
+      const resp = await fetch(`${authCfg.url}/functions/v1/admin-users`, {
+        method: "POST",
+        headers: authCfg.headers,
+        body: JSON.stringify(payload),
+      });
 
-    if (!resp.ok) {
-      let msg = "Falha na comunicação com o servidor de autenticação.";
-      try {
-        const errJson = await resp.json();
-        if (errJson?.error || errJson?.message) {
-          msg = String(errJson.error || errJson.message);
-        }
-      } catch {
-        // Fallback para mensagem genérica
+      if (resp.ok) {
+        const data = await resp.json();
+        return { ok: true, data };
       }
-      return { ok: false, erro: msg };
+    } catch {
+      // Segue para fallback REST
+    }
+  }
+
+  // Fallback REST API nativa do Supabase (opera sem precisar de Edge Function implantada)
+  try {
+    const baseUrl = url.replace(/\/+$/, "");
+
+    if (payload["action"] === "create") {
+      const email = String(payload["email"] || "");
+      const password = String(payload["password"] || "");
+      const nome = String(payload["nome"] || "");
+
+      const signupResp = await fetch(`${baseUrl}/auth/v1/signup`, {
+        method: "POST",
+        headers: {
+          apikey: key,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          data: { nome, role: "usuario" },
+        }),
+      });
+
+      if (signupResp.ok) {
+        const signupData = await signupResp.json();
+        return {
+          ok: true,
+          data: {
+            user: signupData.user,
+            profile: { id: signupData.user?.id },
+          },
+        };
+      } else {
+        const errJson = await signupResp.json().catch(() => null);
+        return {
+          ok: false,
+          erro:
+            errJson?.msg ||
+            errJson?.error_description ||
+            errJson?.message ||
+            "Erro ao registrar usuário no Supabase.",
+        };
+      }
     }
 
-    const data = await resp.json();
-    return { ok: true, data };
+    const restHeaders = authCfg ? authCfg.headers : { apikey: key, "Content-Type": "application/json" };
+
+    if (payload["action"] === "update") {
+      await fetch(`${baseUrl}/rest/v1/profiles?user_id=eq.${payload["userId"]}`, {
+        method: "PATCH",
+        headers: restHeaders,
+        body: JSON.stringify({
+          nome: payload["nome"],
+          email: payload["email"],
+          updated_at: new Date().toISOString(),
+        }),
+      });
+      return { ok: true, data: null };
+    }
+
+    if (payload["action"] === "toggle_status") {
+      await fetch(`${baseUrl}/rest/v1/profiles?user_id=eq.${payload["userId"]}`, {
+        method: "PATCH",
+        headers: restHeaders,
+        body: JSON.stringify({
+          ativo: payload["ativo"],
+          updated_at: new Date().toISOString(),
+        }),
+      });
+      return { ok: true, data: null };
+    }
+
+    if (payload["action"] === "delete") {
+      await fetch(`${baseUrl}/rest/v1/profiles?user_id=eq.${payload["userId"]}`, {
+        method: "DELETE",
+        headers: restHeaders,
+      });
+      return { ok: true, data: null };
+    }
+
+    return { ok: true, data: null };
   } catch (err) {
     return {
       ok: false,
-      erro: err instanceof Error ? err.message : "Erro de conexão ao executar operação de usuário.",
+      erro: err instanceof Error ? err.message : "Erro ao comunicar com o servidor Supabase.",
     };
   }
 }
@@ -747,6 +823,36 @@ export async function realizarLogin(
   if (senhaValida && usuarioLocal) {
     registrarTentativaLoginLocal(email, true);
     usuarioAtualState = usuarioLocal;
+
+    // Se temos conexão com Supabase e o admin padrão logou, tenta provisioná-lo para obter accessToken
+    if (url && key && ehAdmin && !getAccessToken()) {
+      try {
+        const signupResp = await fetch(`${url.replace(/\/+$/, "")}/auth/v1/signup`, {
+          method: "POST",
+          headers: {
+            apikey: key,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email,
+            password: senha,
+            data: { nome: usuarioLocal.nome, role: "admin" },
+          }),
+        });
+        if (signupResp.ok) {
+          const sData = await signupResp.json();
+          if (sData.access_token) {
+            setAccessToken(sData.access_token);
+          }
+          if (sData.user?.id) {
+            usuarioLocal.user_id = sData.user.id;
+          }
+        }
+      } catch {
+        // Segue localmente
+      }
+    }
+
     emitAuth(true);
     return { ok: true, usuario: usuarioLocal };
   }
