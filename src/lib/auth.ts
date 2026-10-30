@@ -294,11 +294,7 @@ async function sincronizarTentativaSupabase(email: string, sucesso: boolean): Pr
   try {
     await fetch(`${url.replace(/\/+$/, "")}/rest/v1/rpc/register_login_attempt?apikey=${encodeURIComponent(key)}`, {
       method: "POST",
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
+      headers: getSupabaseRequestHeaders(key),
       body: JSON.stringify({ _email: email, _success: sucesso }),
     });
   } catch {
@@ -422,6 +418,19 @@ function setAccessToken(token: string | null) {
   } catch {
     // ignore
   }
+}
+
+function getSupabaseRequestHeaders(key: string, userToken?: string | null): Record<string, string> {
+  const headers: Record<string, string> = {
+    apikey: key,
+    "Content-Type": "application/json",
+  };
+  if (userToken) {
+    headers["Authorization"] = `Bearer ${userToken}`;
+  } else if (key.startsWith("eyJ")) {
+    headers["Authorization"] = `Bearer ${key}`;
+  }
+  return headers;
 }
 
 export function getSupabaseAuthHeaders(): {
@@ -576,11 +585,7 @@ async function invocarEdgeFunctionAdmin(payload: Record<string, unknown>): Promi
 
       const signupResp = await fetch(`${baseUrl}/auth/v1/signup?apikey=${encodeURIComponent(key)}`, {
         method: "POST",
-        headers: {
-          apikey: key,
-          Authorization: `Bearer ${key}`,
-          "Content-Type": "application/json",
-        },
+        headers: getSupabaseRequestHeaders(key),
         body: JSON.stringify({
           email,
           password,
@@ -610,13 +615,7 @@ async function invocarEdgeFunctionAdmin(payload: Record<string, unknown>): Promi
       }
     }
 
-    const restHeaders = authCfg
-      ? authCfg.headers
-      : {
-          apikey: key,
-          Authorization: `Bearer ${key}`,
-          "Content-Type": "application/json",
-        };
+    const restHeaders = authCfg ? authCfg.headers : getSupabaseRequestHeaders(key);
 
     if (payload["action"] === "update") {
       await fetch(`${baseUrl}/rest/v1/profiles?user_id=eq.${payload["userId"]}`, {
@@ -725,11 +724,7 @@ export async function realizarLogin(
     try {
       const resp = await fetch(`${url.replace(/\/+$/, "")}/auth/v1/token?grant_type=password&apikey=${encodeURIComponent(key)}`, {
         method: "POST",
-        headers: {
-          apikey: key,
-          Authorization: `Bearer ${key}`,
-          "Content-Type": "application/json",
-        },
+        headers: getSupabaseRequestHeaders(key),
         body: JSON.stringify({ email, password: senha }),
       });
 
@@ -853,11 +848,7 @@ export async function realizarLogin(
       try {
         const signupResp = await fetch(`${url.replace(/\/+$/, "")}/auth/v1/signup?apikey=${encodeURIComponent(key)}`, {
           method: "POST",
-          headers: {
-            apikey: key,
-            Authorization: `Bearer ${key}`,
-            "Content-Type": "application/json",
-          },
+          headers: getSupabaseRequestHeaders(key),
           body: JSON.stringify({
             email,
             password: senha,
