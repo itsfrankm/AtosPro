@@ -298,6 +298,7 @@ function PaginaGerenciarLogins() {
             <tbody className="divide-y divide-border">
               {usuarios.map((u) => {
                 const isOwnerAdmin = u.role === "admin";
+                const isSelf = u.id === usuarioAtual?.id || u.email.toLowerCase() === usuarioAtual?.email.toLowerCase();
                 return (
                   <tr key={u.id} className="hover:bg-muted/20 whitespace-nowrap">
                     <td className="px-5 py-3.5 font-medium text-foreground whitespace-nowrap">
@@ -356,7 +357,7 @@ function PaginaGerenciarLogins() {
                           Alterar Senha
                         </Button>
 
-                        {!isOwnerAdmin && (
+                        {!isSelf && (
                           <>
                             <Button
                               type="button"

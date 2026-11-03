@@ -378,8 +378,7 @@ function formatarDataHoraAtual(iso?: string): string {
 }
 
 const DEFAULT_SUPABASE_URL = "https://bnurkbuijtundaaqrgrl.supabase.co";
-const DEFAULT_SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJudXJrYnVpanR1bmRhYXFyZ3JsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzNTg1NzYsImV4cCI6MjEwODkzNDU3Nn0.dD20l_JEtyqf_7g6TXzLO9oHTC-GwjYJIXXQgXRYbW8";
+const DEFAULT_SUPABASE_ANON_KEY ="sb_publishable_z8I5rb5UlcNNGfSYnINnWg_35rhWvWE";
 
 export function getSupabaseConfig() {
   let url = (import.meta.env["VITE_SUPABASE_URL"] as string | undefined)?.trim();
@@ -644,6 +643,10 @@ async function invocarEdgeFunctionAdmin(payload: Record<string, unknown>): Promi
 
     if (payload["action"] === "delete") {
       await fetch(`${baseUrl}/rest/v1/profiles?user_id=eq.${payload["userId"]}`, {
+        method: "DELETE",
+        headers: restHeaders,
+      });
+      await fetch(`${baseUrl}/rest/v1/user_roles?user_id=eq.${payload["userId"]}`, {
         method: "DELETE",
         headers: restHeaders,
       });
@@ -1126,10 +1129,11 @@ export async function alternarStatusUsuarioPeloAdmin(
     return { ok: false, erro: "Usuário não encontrado." };
   }
 
-  if (alvo.role === "admin") {
+  const isSelf = alvo.id === usuarioAtualState.id || alvo.email.toLowerCase() === usuarioAtualState.email.toLowerCase();
+  if (isSelf) {
     return {
       ok: false,
-      erro: "A conta principal de Administrador não pode ser desativada.",
+      erro: "Você não pode desativar sua própria conta de Administrador.",
     };
   }
 
@@ -1169,10 +1173,11 @@ export async function excluirUsuarioPeloAdmin(
     return { ok: false, erro: "Usuário não encontrado." };
   }
 
-  if (alvo.role === "admin") {
+  const isSelf = alvo.id === usuarioAtualState.id || alvo.email.toLowerCase() === usuarioAtualState.email.toLowerCase();
+  if (isSelf) {
     return {
       ok: false,
-      erro: "A conta principal de Administrador não pode ser excluída.",
+      erro: "Você não pode excluir sua própria conta de Administrador.",
     };
   }
 

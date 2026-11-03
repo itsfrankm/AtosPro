@@ -33,6 +33,7 @@ create table if not exists public.user_roles (
 );
 
 alter table public.user_roles enable row level security;
+create unique index if not exists idx_only_one_admin on public.user_roles (role) where (role = 'admin');
 
 -- 3. Tabela profiles (dados e status ativo/inativo dos logins criados)
 create table if not exists public.profiles (
@@ -547,12 +548,11 @@ declare
 begin
   select exists (select 1 from public.user_roles where role = 'admin') into v_has_admin;
 
-  -- Apenas o primeiro usuário do sistema torna-se admin inicial;
-  -- impede qualquer auto-promoção através de metadados do cliente
-  if not v_has_admin then
-    v_role := 'admin';
-  else
+  -- Se o formulário solicitou 'usuario' ou já existir um admin cadastrado, força 'usuario':
+  if v_has_admin or (new.raw_user_meta_data->>'role' = 'usuario') then
     v_role := 'usuario';
+  else
+    v_role := 'admin';
   end if;
 
   v_nome := coalesce(
