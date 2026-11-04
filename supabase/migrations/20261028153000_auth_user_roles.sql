@@ -747,6 +747,62 @@ $$;
 grant execute on function public.check_login_lockout(text) to anon, authenticated;
 grant execute on function public.register_login_attempt(text, boolean) to anon, authenticated;
 
+-- Alteração de senha de usuários pelo Admin ou pelo próprio usuário no auth.users
+create or replace function public.admin_alterar_senha_usuario(
+  _target_user_id uuid,
+  _new_password text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, auth, extensions
+as $$
+declare
+  v_caller_id uuid := auth.uid();
+  v_is_admin boolean;
+  v_rows integer;
+begin
+  select exists (
+    select 1
+    from public.user_roles ur
+    where ur.user_id = v_caller_id
+      and ur.role = 'admin'
+  ) into v_is_admin;
+
+  if v_caller_id is null or (v_caller_id <> _target_user_id and not v_is_admin) then
+    raise exception 'Acesso negado: apenas o Administrador ou o próprio usuário pode alterar a senha.';
+  end if;
+
+  if _new_password is null or length(btrim(_new_password)) < 6 then
+    raise exception 'A nova senha deve possuir no mínimo 6 caracteres.';
+  end if;
+
+  execute format(
+    'update auth.users set encrypted_password = crypt(%L, gen_salt(%L)), updated_at = now() where id = %L',
+    _new_password,
+    'bf',
+    _target_user_id
+  );
+  get diagnostics v_rows = row_count;
+
+  if v_rows = 0 then
+    raise exception 'Usuário não encontrado em auth.users.';
+  end if;
+
+  delete from public.login_attempts
+  where lower(trim(email)) in (
+    select lower(trim(email)) from auth.users where id = _target_user_id
+  );
+
+  return jsonb_build_object(
+    'ok', true,
+    'message', 'Senha atualizada com sucesso no backend.'
+  );
+end;
+$$;
+
+grant execute on function public.admin_alterar_senha_usuario(uuid, text) to authenticated;
+
 -- ============================================================================
 -- 16. STORAGE SEGURO PARA LOGO ({user_id}/ · PNG, JPG, WEBP · MÁX 5MB)
 -- ============================================================================

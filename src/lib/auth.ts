@@ -643,6 +643,48 @@ async function invocarEdgeFunctionAdmin(payload: Record<string, unknown>): Promi
 
     const restHeaders = authCfg ? authCfg.headers : getSupabaseRequestHeaders(key);
 
+    if (payload["action"] === "update_password") {
+      const targetUserId = String(payload["userId"] || "");
+      const newPassword = String(payload["password"] || "");
+
+      // 1. Se o próprio usuário logado estiver alterando sua senha, atualiza também pela API de usuário do Supabase Auth
+      if (authCfg && authCfg.userId === targetUserId) {
+        try {
+          await fetch(`${baseUrl}/auth/v1/user`, {
+            method: "PUT",
+            headers: authCfg.headers,
+            body: JSON.stringify({ password: newPassword }),
+          });
+        } catch {
+          // Continua para RPC
+        }
+      }
+
+      // 2. Chama a RPC admin_alterar_senha_usuario no Supabase
+      const rpcResp = await fetch(`${baseUrl}/rest/v1/rpc/admin_alterar_senha_usuario`, {
+        method: "POST",
+        headers: restHeaders,
+        body: JSON.stringify({
+          _target_user_id: targetUserId,
+          _new_password: newPassword,
+        }),
+      });
+
+      if (rpcResp.ok) {
+        return { ok: true, data: null };
+      }
+
+      const rpcErr = await rpcResp.json().catch(() => null);
+      return {
+        ok: false,
+        erro:
+          rpcErr?.message ||
+          rpcErr?.error_description ||
+          rpcErr?.msg ||
+          "Erro ao alterar a senha no Supabase.",
+      };
+    }
+
     if (payload["action"] === "update") {
       await fetch(`${baseUrl}/rest/v1/profiles?user_id=eq.${payload["userId"]}`, {
         method: "PATCH",
@@ -1114,7 +1156,7 @@ export async function alterarSenhaUsuarioPeloAdmin(
     };
   }
 
-  const alvo = usuariosState.find((u) => u.id === id);
+  const alvo = usuariosState.find((u) => u.id === id || u.user_id === id);
   if (!alvo) {
     return { ok: false, erro: "Usuário não encontrado." };
   }
@@ -1134,9 +1176,11 @@ export async function alterarSenhaUsuarioPeloAdmin(
   salvarMapaTentativas(tentativasState);
 
   usuariosState = usuariosState.map((u) =>
-    u.id === id ? { ...u, senha: "", senhaHash: gerarHashSenhaSync(validacao.data.novaSenha) } : u,
+    u.id === id || u.user_id === alvo.user_id
+      ? { ...u, senha: "", senhaHash: gerarHashSenhaSync(validacao.data.novaSenha) }
+      : u,
   );
-  if (usuarioAtualState.id === id) {
+  if (usuarioAtualState.id === id || usuarioAtualState.user_id === alvo.user_id) {
     usuarioAtualState = { ...usuarioAtualState, senha: "", senhaHash: gerarHashSenhaSync(validacao.data.novaSenha) };
   }
   emitAuth(false);
