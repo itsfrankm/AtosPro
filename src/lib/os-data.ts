@@ -195,7 +195,7 @@ async function carregarOSClientesDoSupabase(userId: string): Promise<void> {
 
     if (osResp.ok) {
       const rows = await osResp.json();
-      if (Array.isArray(rows) && rows.length > 0) {
+      if (Array.isArray(rows)) {
         novasOrdens = rows.map((r) => ({
           numero: String(r.numero),
           cliente: String(r.cliente),
@@ -224,12 +224,12 @@ async function carregarOSClientesDoSupabase(userId: string): Promise<void> {
 
     if (cliResp.ok) {
       const rows = await cliResp.json();
-      if (Array.isArray(rows) && rows.length > 0) {
+      if (Array.isArray(rows)) {
         novosClientes = rows.map((r) => ({
           id: String(r.id),
           nome: String(r.nome),
           documento: String(r.documento ?? ""),
-          whatsapp: String(r.whatsapp ?? ""),
+          whatsapp: String(r.whatsapp ?? r.telefone ?? ""),
           email: String(r.email ?? ""),
           cep: String(r.cep ?? ""),
           endereco: String(r.endereco ?? ""),
@@ -282,6 +282,7 @@ export function salvarOrdem(ordem: OrdemServico) {
         Prefer: "resolution=merge-duplicates",
       },
       body: JSON.stringify({
+        id: `os-${seqNumero}`,
         user_id: userId,
         seq_numero: seqNumero,
         numero: ordem.numero,

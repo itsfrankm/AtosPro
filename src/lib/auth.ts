@@ -54,9 +54,11 @@ export function gerarHashSenhaSync(senha: string): string {
   return `sha256_mock_${(h >>> 0).toString(16).padStart(8, "0")}`;
 }
 
+export const ADMIN_PADRAO_UUID = "00000000-0000-0000-0000-000000000001";
+
 export const ADMIN_PADRAO: UsuarioSistema = {
-  id: "usr-admin-owner",
-  user_id: "00000000-0000-0000-0000-000000000001",
+  id: ADMIN_PADRAO_UUID,
+  user_id: ADMIN_PADRAO_UUID,
   nome: "Administrador (Dono)",
   email: "admin@atospro.com",
   senha: "",
@@ -65,6 +67,23 @@ export const ADMIN_PADRAO: UsuarioSistema = {
   ativo: true,
   criadoEm: "2026-01-01 08:00",
 };
+
+/**
+ * Padroniza o ID de qualquer usuário para que `id` e `user_id` sejam sempre
+ * exatamente o mesmo UUID canônico vinculado ao `auth.users(id)`.
+ */
+export function padronizarUsuarioId(u: UsuarioSistema): UsuarioSistema {
+  const canonicalId = (
+    u.user_id ||
+    (u.id?.startsWith("usr-") ? u.id.slice(4) : u.id) ||
+    ADMIN_PADRAO_UUID
+  ).trim();
+  return {
+    ...u,
+    id: canonicalId,
+    user_id: canonicalId,
+  };
+}
 
 const usuariosIniciais: UsuarioSistema[] = [ADMIN_PADRAO];
 
@@ -75,11 +94,12 @@ function carregarUsuariosIniciais(): UsuarioSistema[] {
     if (!raw) return usuariosIniciais;
     const parsed = JSON.parse(raw) as UsuarioSistema[];
     if (!Array.isArray(parsed) || parsed.length === 0) return usuariosIniciais;
-    const temAdmin = parsed.some((u) => u.role === "admin");
+    const normalizados = parsed.map(padronizarUsuarioId);
+    const temAdmin = normalizados.some((u) => u.role === "admin");
     if (!temAdmin) {
-      return [ADMIN_PADRAO, ...parsed];
+      return [ADMIN_PADRAO, ...normalizados];
     }
-    return parsed;
+    return normalizados;
   } catch {
     return usuariosIniciais;
   }
@@ -98,13 +118,13 @@ function carregarSessaoInicial(listaUsuarios: UsuarioSistema[]): UsuarioSistema 
 
     const raw = window.localStorage.getItem(STORAGE_KEY_SESSION);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as UsuarioSistema;
+    const parsed = padronizarUsuarioId(JSON.parse(raw) as UsuarioSistema);
     if (!parsed?.email) return null;
     const encontrado = listaUsuarios.find(
-      (u) => u.email.toLowerCase() === parsed.email.toLowerCase(),
+      (u) => u.user_id === parsed.user_id || u.email.toLowerCase() === parsed.email.toLowerCase(),
     );
     if (encontrado) {
-      return encontrado.ativo ? encontrado : null;
+      return encontrado.ativo ? padronizarUsuarioId(encontrado) : null;
     }
     return parsed.ativo !== false ? parsed : null;
   } catch {
@@ -378,7 +398,8 @@ function formatarDataHoraAtual(iso?: string): string {
 }
 
 const DEFAULT_SUPABASE_URL = "https://bnurkbuijtundaaqrgrl.supabase.co";
-const DEFAULT_SUPABASE_ANON_KEY ="sb_publishable_z8I5rb5UlcNNGfSYnINnWg_35rhWvWE";
+const DEFAULT_SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJudXJrYnVpanR1bmRhYXFyZ3JsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzNTg1NzYsImV4cCI6MjEwODkzNDU3Nn0.dD20l_JEtyqf_7g6TXzLO9oHTC-GwjYJIXXQgXRYbW8";
 
 export function getSupabaseConfig() {
   let url = (import.meta.env["VITE_SUPABASE_URL"] as string | undefined)?.trim();
@@ -426,7 +447,7 @@ function getSupabaseRequestHeaders(key: string, userToken?: string | null): Reco
   };
   if (userToken) {
     headers["Authorization"] = `Bearer ${userToken}`;
-  } else if (key.startsWith("eyJ")) {
+  } else if (key) {
     headers["Authorization"] = `Bearer ${key}`;
   }
   return headers;
@@ -499,6 +520,7 @@ export async function sincronizarUsuariosSupabase(): Promise<void> {
       if (idx >= 0) {
         mesclados[idx] = {
           ...mesclados[idx]!,
+          id: p.user_id,
           user_id: p.user_id,
           nome: p.nome,
           email: p.email.toLowerCase(),
@@ -507,7 +529,7 @@ export async function sincronizarUsuariosSupabase(): Promise<void> {
         };
       } else {
         mesclados.push({
-          id: p.id || `usr-${p.user_id}`,
+          id: p.user_id,
           user_id: p.user_id,
           nome: p.nome,
           email: p.email.toLowerCase(),
@@ -541,8 +563,8 @@ export async function sincronizarUsuariosSupabase(): Promise<void> {
 }
 
 interface AdminEdgeResponse {
-  user?: { id?: string; email?: string };
-  profile?: { id?: string };
+  user?: { id?: string | undefined; email?: string | undefined } | undefined;
+  profile?: { id?: string | undefined } | undefined;
 }
 
 async function invocarEdgeFunctionAdmin(payload: Record<string, unknown>): Promise<{
@@ -594,11 +616,16 @@ async function invocarEdgeFunctionAdmin(payload: Record<string, unknown>): Promi
 
       if (signupResp.ok) {
         const signupData = await signupResp.json();
+        const createdUserId: string | undefined =
+          signupData?.user?.id || signupData?.id;
         return {
           ok: true,
           data: {
-            user: signupData.user,
-            profile: { id: signupData.user?.id },
+            user: {
+              id: createdUserId,
+              email: signupData?.user?.email || signupData?.email || email,
+            },
+            profile: { id: createdUserId },
           },
         };
       } else {
@@ -800,12 +827,12 @@ export async function realizarLogin(
         }
 
         const usuarioAutenticado: UsuarioSistema = {
-          id: usuarioLocal?.id ?? `usr-${supaUser.id}`,
+          id: supaUser.id,
           user_id: supaUser.id,
           nome: nomeDetectado,
           email,
           senha,
-          role: usuarioLocal?.role ?? roleDetectada,
+          role: roleDetectada,
           ativo: true,
           criadoEm: usuarioLocal?.criadoEm ?? formatarDataHoraAtual(),
         };
@@ -863,8 +890,10 @@ export async function realizarLogin(
           if (sData.access_token) {
             setAccessToken(sData.access_token);
           }
-          if (sData.user?.id) {
-            usuarioLocal.user_id = sData.user.id;
+          const novoUid = sData.user?.id || sData.id;
+          if (novoUid) {
+            usuarioLocal.id = novoUid;
+            usuarioLocal.user_id = novoUid;
           }
         }
       } catch {
@@ -968,10 +997,12 @@ export async function criarLoginPeloAdmin(dados: {
   const resJson = res.data;
   if (resJson?.user?.id) {
     remoteUserId = String(resJson.user.id);
+  } else if (resJson?.profile?.id) {
+    remoteUserId = String(resJson.profile.id);
   }
 
   const novoUsuario: UsuarioSistema = {
-    id: (resJson?.profile?.id as string | undefined) ?? `usr-${Date.now()}`,
+    id: remoteUserId,
     user_id: remoteUserId,
     nome,
     email,

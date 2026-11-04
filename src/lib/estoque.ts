@@ -707,23 +707,31 @@ export async function carregarTabelasDoSupabase(targetUserId?: string): Promise<
 
     if (settingsResp.ok) {
       const rows = await settingsResp.json();
-      if (Array.isArray(rows) && rows[0]) {
-        const s = rows[0];
-        estado = {
-          ...estado,
-          perfil: {
-            nome: s.nome_empresa ?? estado.perfil.nome,
-            cnpj: s.cnpj ?? estado.perfil.cnpj,
-            telefone: s.telefone ?? estado.perfil.telefone,
-            email: s.email ?? estado.perfil.email,
-            endereco: s.endereco ?? estado.perfil.endereco,
-            logo: s.logo ?? estado.perfil.logo,
-          },
-          aparencia: {
-            paleta: (s.paleta_cores as PaletaId) || estado.aparencia.paleta,
-            modo: (s.modo_tema as ModoTema) || estado.aparencia.modo,
-          },
-        };
+      if (Array.isArray(rows)) {
+        if (rows[0]) {
+          const s = rows[0];
+          estado = {
+            ...estado,
+            perfil: {
+              nome: s.nome_empresa ?? "",
+              cnpj: s.cnpj ?? "",
+              telefone: s.telefone ?? "",
+              email: s.email ?? "",
+              endereco: s.endereco ?? "",
+              logo: s.logo ?? "",
+            },
+            aparencia: {
+              paleta: (s.paleta_cores as PaletaId) || aparenciaInicial.paleta,
+              modo: (s.modo_tema as ModoTema) || aparenciaInicial.modo,
+            },
+          };
+        } else {
+          estado = {
+            ...estado,
+            perfil: { ...perfilEmBranco },
+            aparencia: { ...aparenciaInicial },
+          };
+        }
         aplicarAparenciaNoDOM(estado.aparencia);
         alterou = true;
       }
@@ -731,7 +739,7 @@ export async function carregarTabelasDoSupabase(targetUserId?: string): Promise<
 
     if (prodResp.ok) {
       const rows = await prodResp.json();
-      if (Array.isArray(rows) && rows.length > 0) {
+      if (Array.isArray(rows)) {
         estado = {
           ...estado,
           produtos: rows.map((r) => ({
@@ -749,7 +757,7 @@ export async function carregarTabelasDoSupabase(targetUserId?: string): Promise<
 
     if (supResp.ok) {
       const rows = await supResp.json();
-      if (Array.isArray(rows) && rows.length > 0) {
+      if (Array.isArray(rows)) {
         estado = {
           ...estado,
           fornecedores: rows.map((r) => ({
@@ -767,7 +775,7 @@ export async function carregarTabelasDoSupabase(targetUserId?: string): Promise<
     if (invResp.ok && invItemsResp.ok) {
       const invRows = await invResp.json();
       const itemRows = await invItemsResp.json();
-      if (Array.isArray(invRows) && invRows.length > 0) {
+      if (Array.isArray(invRows)) {
         const itensPorNota = new Map<string, ItemNota[]>();
         if (Array.isArray(itemRows)) {
           for (const it of itemRows) {
@@ -800,7 +808,7 @@ export async function carregarTabelasDoSupabase(targetUserId?: string): Promise<
       const saleItemsRows = saleItemsResp.ok ? await saleItemsResp.json() : [];
       const paymentsRows = paymentsResp.ok ? await paymentsResp.json() : [];
 
-      if (Array.isArray(salesRows) && salesRows.length > 0) {
+      if (Array.isArray(salesRows)) {
         const itensPorVenda = new Map<string, ItemVenda[]>();
         if (Array.isArray(saleItemsRows)) {
           for (const it of saleItemsRows) {
@@ -848,7 +856,7 @@ export async function carregarTabelasDoSupabase(targetUserId?: string): Promise<
 
     if (caixaResp.ok) {
       const rows = await caixaResp.json();
-      if (Array.isArray(rows) && rows.length > 0) {
+      if (Array.isArray(rows)) {
         estado = {
           ...estado,
           caixa: rows.map((r) => ({

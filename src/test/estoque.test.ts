@@ -26,6 +26,8 @@ import {
   registrarTentativaLoginLocal,
   obterStatusBloqueioEmail,
   limparTentativasLoginParaTestes,
+  padronizarUsuarioId,
+  ADMIN_PADRAO,
 } from "@/lib/auth";
 
 const p = [{ id: "a", nome: "A", sku: "", quantidade: 5, custo: 10, venda: 20 }];
@@ -71,6 +73,21 @@ describe("estoque, isolamento multi-tenant e camada de segurança", () => {
     expect(novo.perfil.logo).toBe("");
     expect(novo.aparencia.paleta).toBe("azul-escuro");
     expect(novo.aparencia.modo).toBe("light");
+  });
+
+  it("padroniza o ID de criação de usuários (id sempre igual ao user_id UUID)", () => {
+    expect(ADMIN_PADRAO.id).toBe(ADMIN_PADRAO.user_id);
+    const legado = padronizarUsuarioId({
+      id: "usr-b18b8b3a-716b-45b6-a5ae-1d92f4ee0000",
+      user_id: "b18b8b3a-716b-45b6-a5ae-1d92f4ee0000",
+      nome: "Convidado",
+      email: "convidado.teste@gmail.com",
+      role: "usuario",
+      ativo: true,
+      criadoEm: "2026-11-03 10:30",
+    });
+    expect(legado.id).toBe("b18b8b3a-716b-45b6-a5ae-1d92f4ee0000");
+    expect(legado.user_id).toBe("b18b8b3a-716b-45b6-a5ae-1d92f4ee0000");
   });
 
   it("numeração sequencial de OS e Venda começa em #1 para cada usuário", () => {

@@ -561,14 +561,17 @@ begin
     split_part(new.email, '@', 1)
   );
 
-  insert into public.user_roles (user_id, role)
-  values (new.id, v_role)
-  on conflict (user_id) do update set role = excluded.role;
-
-  insert into public.profiles (user_id, nome, email, role, ativo, updated_at)
-  values (new.id, v_nome, new.email, v_role, true, now())
+  insert into public.user_roles (id, user_id, role)
+  values (new.id, new.id, v_role)
   on conflict (user_id) do update
-    set nome = excluded.nome,
+    set id = excluded.id,
+        role = excluded.role;
+
+  insert into public.profiles (id, user_id, nome, email, role, ativo, updated_at)
+  values (new.id, new.id, v_nome, new.email, v_role, true, now())
+  on conflict (user_id) do update
+    set id = excluded.id,
+        nome = excluded.nome,
         email = excluded.email,
         role = excluded.role,
         updated_at = now();
