@@ -808,13 +808,15 @@ $$;
 
 grant execute on function public.admin_alterar_senha_usuario(text, text, text) to anon, authenticated;
 
--- Atualização de Nome e E-mail sincronizada entre auth.users e public.profiles
+-- Atualização de Nome e E-mail sincronizada entre auth.users, auth.identities e public.profiles
 drop function if exists public.admin_atualizar_dados_usuario(text, text, text);
+drop function if exists public.admin_atualizar_dados_usuario(text, text, text, text);
 
 create or replace function public.admin_atualizar_dados_usuario(
   _target_user_id text,
   _novo_nome text,
-  _novo_email text
+  _novo_email text,
+  _old_email text default null
 )
 returns jsonb
 language plpgsql
@@ -823,34 +825,175 @@ set search_path = public, auth
 as $$
 declare
   v_user_id uuid;
+  v_old_email text;
   v_email_limpo text := lower(btrim(coalesce(_novo_email, '')));
   v_nome_limpo text := btrim(coalesce(_novo_nome, ''));
+begin
+  if v_email_limpo = '' or v_nome_limpo = '' then
+    raise exception 'Informe Nome e E-mail válidos.';
+  end if;
+
+  -- Localiza o usuário em auth.users pelo UUID ou pelo e-mail antigo
+  select u.id, u.email
+    into v_user_id, v_old_email
+    from auth.users u
+   where u.id::text = btrim(coalesce(_target_user_id, ''))
+      or (
+        coalesce(btrim(_old_email), '') <> ''
+        and lower(btrim(u.email)) = lower(btrim(_old_email))
+      )
+   limit 1;
+
+  -- Caso não tenha encontrado diretamente, tenta localizar via public.profiles
+  if v_user_id is null then
+    select p.user_id, p.email
+      into v_user_id, v_old_email
+      from public.profiles p
+     where p.id::text = btrim(coalesce(_target_user_id, ''))
+        or p.user_id::text = btrim(coalesce(_target_user_id, ''))
+        or (
+          coalesce(btrim(_old_email), '') <> ''
+          and lower(btrim(p.email)) = lower(btrim(_old_email))
+        )
+     limit 1;
+  end if;
+
+  if v_user_id is null then
+    raise exception 'Usuário não encontrado no banco de dados.';
+  end if;
+
+  -- Verifica se já existe outro usuário com o novo e-mail
+  if exists (
+    select 1 from auth.users u
+    where lower(btrim(u.email)) = v_email_limpo
+      and u.id <> v_user_id
+  ) then
+    raise exception 'Já existe outro usuário cadastrado com este e-mail.';
+  end if;
+
+  -- 1. Atualiza auth.users (e-mail, metadados e confirmação imediata sem exigir clique em link)
+  update auth.users
+  set email = v_email_limpo,
+      raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb) || jsonb_build_object('nome', v_nome_limpo, 'name', v_nome_limpo),
+      email_confirmed_at = coalesce(email_confirmed_at, now()),
+      email_change = '',
+      email_change_token_new = '',
+      updated_at = now()
+  where id = v_user_id;
+
+  -- 2. Atualiza auth.identities para que o GoTrue reconheça o novo e-mail no login
+  update auth.identities
+  set identity_data = coalesce(identity_data, '{}'::jsonb) || jsonb_build_object('email', v_email_limpo),
+      updated_at = now()
+  where user_id = v_user_id;
+
+  -- 3. Atualiza (ou cria) o registro correspondente em public.profiles com ID padronizado
+  insert into public.profiles (id, user_id, nome, email, role, ativo, updated_at)
+  values (
+    v_user_id,
+    v_user_id,
+    v_nome_limpo,
+    v_email_limpo,
+    coalesce((select ur.role from public.user_roles ur where ur.user_id = v_user_id limit 1), 'usuario'::public.app_role),
+    true,
+    now()
+  )
+  on conflict (user_id) do update
+    set id = excluded.id,
+        nome = excluded.nome,
+        email = excluded.email,
+        updated_at = now();
+
+  -- 4. Limpa tentativas de login antigas
+  delete from public.login_attempts
+  where lower(btrim(email)) in (lower(btrim(coalesce(v_old_email, ''))), v_email_limpo);
+
+  return jsonb_build_object(
+    'ok', true,
+    'user_id', v_user_id,
+    'nome', v_nome_limpo,
+    'email', v_email_limpo
+  );
+end;
+$$;
+
+grant execute on function public.admin_atualizar_dados_usuario(text, text, text, text) to anon, authenticated;
+
+-- Ativar / Desativar acesso do usuário em auth.users e public.profiles
+drop function if exists public.admin_alterar_status_usuario(text, boolean, text);
+
+create or replace function public.admin_alterar_status_usuario(
+  _target_user_id text,
+  _ativo boolean,
+  _target_email text default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+  v_user_id uuid;
 begin
   select u.id into v_user_id
   from auth.users u
   where u.id::text = btrim(coalesce(_target_user_id, ''))
+     or (
+       coalesce(btrim(_target_email), '') <> ''
+       and lower(btrim(u.email)) = lower(btrim(_target_email))
+     )
   limit 1;
 
-  if v_user_id is not null and v_email_limpo <> '' then
-    update auth.users
-    set email = v_email_limpo,
-        raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb) || jsonb_build_object('nome', v_nome_limpo),
-        email_confirmed_at = coalesce(email_confirmed_at, now()),
-        updated_at = now()
-    where id = v_user_id;
+  if v_user_id is null then
+    raise exception 'Usuário não encontrado no banco de dados.';
+  end if;
 
-    update public.profiles
-    set nome = v_nome_limpo,
-        email = v_email_limpo,
-        updated_at = now()
-    where user_id = v_user_id;
+  update public.profiles
+  set ativo = _ativo,
+      updated_at = now()
+  where user_id = v_user_id;
+
+  return jsonb_build_object('ok', true, 'user_id', v_user_id, 'ativo', _ativo);
+end;
+$$;
+
+grant execute on function public.admin_alterar_status_usuario(text, boolean, text) to anon, authenticated;
+
+-- Excluir usuário completamente (auth.users + cascade em todas as tabelas do usuário)
+drop function if exists public.admin_excluir_usuario(text, text);
+
+create or replace function public.admin_excluir_usuario(
+  _target_user_id text,
+  _target_email text default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+  v_user_id uuid;
+begin
+  select u.id into v_user_id
+  from auth.users u
+  where u.id::text = btrim(coalesce(_target_user_id, ''))
+     or (
+       coalesce(btrim(_target_email), '') <> ''
+       and lower(btrim(u.email)) = lower(btrim(_target_email))
+     )
+  limit 1;
+
+  if v_user_id is not null then
+    delete from public.profiles where user_id = v_user_id;
+    delete from public.user_roles where user_id = v_user_id;
+    delete from auth.users where id = v_user_id;
   end if;
 
   return jsonb_build_object('ok', true);
 end;
 $$;
 
-grant execute on function public.admin_atualizar_dados_usuario(text, text, text) to anon, authenticated;
+grant execute on function public.admin_excluir_usuario(text, text) to anon, authenticated;
 
 notify pgrst, 'reload schema';
 

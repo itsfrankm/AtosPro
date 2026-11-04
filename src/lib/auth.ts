@@ -699,37 +699,89 @@ async function invocarEdgeFunctionAdmin(payload: Record<string, unknown>): Promi
 
     if (payload["action"] === "update") {
       const targetUserId = String(payload["userId"] || "");
+      const oldEmail = String(payload["oldEmail"] || "");
       const novoNome = String(payload["nome"] || "");
       const novoEmail = String(payload["email"] || "").trim().toLowerCase();
 
-      await fetch(`${baseUrl}/rest/v1/rpc/admin_atualizar_dados_usuario`, {
+      const rpcBody = JSON.stringify({
+        _target_user_id: targetUserId,
+        _novo_nome: novoNome,
+        _novo_email: novoEmail,
+        _old_email: oldEmail,
+      });
+
+      let rpcResp = await fetch(`${baseUrl}/rest/v1/rpc/admin_atualizar_dados_usuario`, {
         method: "POST",
         headers: restHeaders,
-        body: JSON.stringify({
-          _target_user_id: targetUserId,
-          _novo_nome: novoNome,
-          _novo_email: novoEmail,
-        }),
-      }).catch(() => {});
+        body: rpcBody,
+      });
+
+      if (!rpcResp.ok && authCfg) {
+        rpcResp = await fetch(`${baseUrl}/rest/v1/rpc/admin_atualizar_dados_usuario`, {
+          method: "POST",
+          headers: getSupabaseRequestHeaders(key),
+          body: rpcBody,
+        });
+      }
+
+      if (rpcResp.ok) {
+        const rpcData = await rpcResp.json().catch(() => null);
+        return {
+          ok: true,
+          data: rpcData?.user_id
+            ? {
+                user: { id: String(rpcData.user_id), email: novoEmail },
+                profile: { id: String(rpcData.user_id) },
+              }
+            : null,
+        };
+      }
+
+      const rpcErr = await rpcResp.json().catch(() => null);
+      return {
+        ok: false,
+        erro:
+          rpcErr?.message ||
+          rpcErr?.error_description ||
+          rpcErr?.msg ||
+          "Erro ao atualizar dados do usuário no Supabase.",
+      };
+    }
+
+    if (payload["action"] === "toggle_status") {
+      const targetUserId = String(payload["userId"] || "");
+      const targetEmail = String(payload["email"] || "");
+      const ativo = Boolean(payload["ativo"]);
+
+      const rpcBody = JSON.stringify({
+        _target_user_id: targetUserId,
+        _ativo: ativo,
+        _target_email: targetEmail,
+      });
+
+      let rpcResp = await fetch(`${baseUrl}/rest/v1/rpc/admin_alterar_status_usuario`, {
+        method: "POST",
+        headers: restHeaders,
+        body: rpcBody,
+      });
+
+      if (!rpcResp.ok && authCfg) {
+        rpcResp = await fetch(`${baseUrl}/rest/v1/rpc/admin_alterar_status_usuario`, {
+          method: "POST",
+          headers: getSupabaseRequestHeaders(key),
+          body: rpcBody,
+        });
+      }
+
+      if (rpcResp.ok) {
+        return { ok: true, data: null };
+      }
 
       await fetch(`${baseUrl}/rest/v1/profiles?user_id=eq.${targetUserId}`, {
         method: "PATCH",
         headers: restHeaders,
         body: JSON.stringify({
-          nome: novoNome,
-          email: novoEmail,
-          updated_at: new Date().toISOString(),
-        }),
-      });
-      return { ok: true, data: null };
-    }
-
-    if (payload["action"] === "toggle_status") {
-      await fetch(`${baseUrl}/rest/v1/profiles?user_id=eq.${payload["userId"]}`, {
-        method: "PATCH",
-        headers: restHeaders,
-        body: JSON.stringify({
-          ativo: payload["ativo"],
+          ativo,
           updated_at: new Date().toISOString(),
         }),
       });
@@ -737,11 +789,37 @@ async function invocarEdgeFunctionAdmin(payload: Record<string, unknown>): Promi
     }
 
     if (payload["action"] === "delete") {
-      await fetch(`${baseUrl}/rest/v1/profiles?user_id=eq.${payload["userId"]}`, {
+      const targetUserId = String(payload["userId"] || "");
+      const targetEmail = String(payload["email"] || "");
+
+      const rpcBody = JSON.stringify({
+        _target_user_id: targetUserId,
+        _target_email: targetEmail,
+      });
+
+      let rpcResp = await fetch(`${baseUrl}/rest/v1/rpc/admin_excluir_usuario`, {
+        method: "POST",
+        headers: restHeaders,
+        body: rpcBody,
+      });
+
+      if (!rpcResp.ok && authCfg) {
+        rpcResp = await fetch(`${baseUrl}/rest/v1/rpc/admin_excluir_usuario`, {
+          method: "POST",
+          headers: getSupabaseRequestHeaders(key),
+          body: rpcBody,
+        });
+      }
+
+      if (rpcResp.ok) {
+        return { ok: true, data: null };
+      }
+
+      await fetch(`${baseUrl}/rest/v1/profiles?user_id=eq.${targetUserId}`, {
         method: "DELETE",
         headers: restHeaders,
       });
-      await fetch(`${baseUrl}/rest/v1/user_roles?user_id=eq.${payload["userId"]}`, {
+      await fetch(`${baseUrl}/rest/v1/user_roles?user_id=eq.${targetUserId}`, {
         method: "DELETE",
         headers: restHeaders,
       });
@@ -1118,7 +1196,7 @@ export async function editarDadosUsuarioPeloAdmin(
     };
   }
 
-  const alvo = usuariosState.find((u) => u.id === id);
+  const alvo = usuariosState.find((u) => u.id === id || u.user_id === id);
   if (!alvo) {
     return { ok: false, erro: "Usuário não encontrado." };
   }
@@ -1127,13 +1205,18 @@ export async function editarDadosUsuarioPeloAdmin(
   const novoNome = validacao.data.nome;
 
   // Verifica se outro usuário já usa esse e-mail
-  if (usuariosState.some((u) => u.id !== id && u.email.toLowerCase() === novoEmail)) {
+  if (
+    usuariosState.some(
+      (u) => u.id !== alvo.id && u.user_id !== alvo.user_id && u.email.toLowerCase() === novoEmail,
+    )
+  ) {
     return { ok: false, erro: "Já existe outro usuário cadastrado com este e-mail." };
   }
 
   const res = await invocarEdgeFunctionAdmin({
     action: "update",
     userId: alvo.user_id,
+    oldEmail: alvo.email,
     nome: novoNome,
     email: novoEmail,
   });
@@ -1148,17 +1231,24 @@ export async function editarDadosUsuarioPeloAdmin(
     salvarMapaTentativas(tentativasState);
   }
 
+  const canonicalId = res.data?.user?.id || alvo.user_id;
   const usuarioAtualizado: UsuarioSistema = {
     ...alvo,
+    id: canonicalId,
+    user_id: canonicalId,
     nome: novoNome,
     email: novoEmail,
   };
 
-  usuariosState = usuariosState.map((u) => (u.id === id ? usuarioAtualizado : u));
+  usuariosState = usuariosState.map((u) =>
+    u.id === id || u.user_id === alvo.user_id ? usuarioAtualizado : u,
+  );
 
-  if (usuarioAtualState.id === id) {
+  if (usuarioAtualState.id === id || usuarioAtualState.user_id === alvo.user_id) {
     usuarioAtualState = {
       ...usuarioAtualState,
+      id: canonicalId,
+      user_id: canonicalId,
       nome: novoNome,
       email: novoEmail,
     };
@@ -1233,7 +1323,7 @@ export async function alternarStatusUsuarioPeloAdmin(
     return { ok: false, ...(rate.erro ? { erro: rate.erro } : {}) };
   }
 
-  const alvo = usuariosState.find((u) => u.id === id);
+  const alvo = usuariosState.find((u) => u.id === id || u.user_id === id);
   if (!alvo) {
     return { ok: false, erro: "Usuário não encontrado." };
   }
@@ -1251,6 +1341,7 @@ export async function alternarStatusUsuarioPeloAdmin(
   const res = await invocarEdgeFunctionAdmin({
     action: "toggle_status",
     userId: alvo.user_id,
+    email: alvo.email,
     ativo: novoStatus,
   });
 
@@ -1259,7 +1350,7 @@ export async function alternarStatusUsuarioPeloAdmin(
   }
 
   usuariosState = usuariosState.map((u) =>
-    u.id === id ? { ...u, ativo: novoStatus } : u,
+    u.id === id || u.user_id === alvo.user_id ? { ...u, ativo: novoStatus } : u,
   );
   emitAuth(false);
   return { ok: true, ativo: novoStatus };
@@ -1277,7 +1368,7 @@ export async function excluirUsuarioPeloAdmin(
     return { ok: false, ...(rate.erro ? { erro: rate.erro } : {}) };
   }
 
-  const alvo = usuariosState.find((u) => u.id === id);
+  const alvo = usuariosState.find((u) => u.id === id || u.user_id === id);
   if (!alvo) {
     return { ok: false, erro: "Usuário não encontrado." };
   }
@@ -1293,6 +1384,7 @@ export async function excluirUsuarioPeloAdmin(
   const res = await invocarEdgeFunctionAdmin({
     action: "delete",
     userId: alvo.user_id,
+    email: alvo.email,
   });
 
   if (!res.ok) {
@@ -1301,7 +1393,7 @@ export async function excluirUsuarioPeloAdmin(
 
   tenantDeleteCallbacks.forEach((cb) => cb(alvo.user_id));
 
-  usuariosState = usuariosState.filter((u) => u.id !== id);
+  usuariosState = usuariosState.filter((u) => u.id !== id && u.user_id !== alvo.user_id);
   emitAuth(false);
   return { ok: true };
 }
