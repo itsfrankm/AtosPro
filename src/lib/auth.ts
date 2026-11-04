@@ -645,6 +645,7 @@ async function invocarEdgeFunctionAdmin(payload: Record<string, unknown>): Promi
 
     if (payload["action"] === "update_password") {
       const targetUserId = String(payload["userId"] || "");
+      const targetEmail = String(payload["email"] || "");
       const newPassword = String(payload["password"] || "");
 
       // 1. Se o próprio usuário logado estiver alterando sua senha, atualiza também pela API de usuário do Supabase Auth
@@ -660,15 +661,26 @@ async function invocarEdgeFunctionAdmin(payload: Record<string, unknown>): Promi
         }
       }
 
-      // 2. Chama a RPC admin_alterar_senha_usuario no Supabase
-      const rpcResp = await fetch(`${baseUrl}/rest/v1/rpc/admin_alterar_senha_usuario`, {
+      // 2. Chama a RPC admin_alterar_senha_usuario no Supabase (com fallback para anon key caso o JWT local tenha expirado)
+      const rpcBody = JSON.stringify({
+        _target_user_id: targetUserId,
+        _new_password: newPassword,
+        _target_email: targetEmail,
+      });
+
+      let rpcResp = await fetch(`${baseUrl}/rest/v1/rpc/admin_alterar_senha_usuario`, {
         method: "POST",
         headers: restHeaders,
-        body: JSON.stringify({
-          _target_user_id: targetUserId,
-          _new_password: newPassword,
-        }),
+        body: rpcBody,
       });
+
+      if (!rpcResp.ok && authCfg) {
+        rpcResp = await fetch(`${baseUrl}/rest/v1/rpc/admin_alterar_senha_usuario`, {
+          method: "POST",
+          headers: getSupabaseRequestHeaders(key),
+          body: rpcBody,
+        });
+      }
 
       if (rpcResp.ok) {
         return { ok: true, data: null };
@@ -686,12 +698,26 @@ async function invocarEdgeFunctionAdmin(payload: Record<string, unknown>): Promi
     }
 
     if (payload["action"] === "update") {
-      await fetch(`${baseUrl}/rest/v1/profiles?user_id=eq.${payload["userId"]}`, {
+      const targetUserId = String(payload["userId"] || "");
+      const novoNome = String(payload["nome"] || "");
+      const novoEmail = String(payload["email"] || "").trim().toLowerCase();
+
+      await fetch(`${baseUrl}/rest/v1/rpc/admin_atualizar_dados_usuario`, {
+        method: "POST",
+        headers: restHeaders,
+        body: JSON.stringify({
+          _target_user_id: targetUserId,
+          _novo_nome: novoNome,
+          _novo_email: novoEmail,
+        }),
+      }).catch(() => {});
+
+      await fetch(`${baseUrl}/rest/v1/profiles?user_id=eq.${targetUserId}`, {
         method: "PATCH",
         headers: restHeaders,
         body: JSON.stringify({
-          nome: payload["nome"],
-          email: payload["email"],
+          nome: novoNome,
+          email: novoEmail,
           updated_at: new Date().toISOString(),
         }),
       });
@@ -791,6 +817,7 @@ export async function realizarLogin(
   }
 
   // 4. Tenta autenticar via Supabase Auth REST API caso configurado
+  let supabaseRejeitouCredenciais = false;
   const { url, key } = getSupabaseConfig();
   if (url && key) {
     try {
@@ -873,7 +900,8 @@ export async function realizarLogin(
           user_id: supaUser.id,
           nome: nomeDetectado,
           email,
-          senha,
+          senha: "",
+          senhaHash: gerarHashSenhaSync(senha),
           role: roleDetectada,
           ativo: true,
           criadoEm: usuarioLocal?.criadoEm ?? formatarDataHoraAtual(),
@@ -896,20 +924,25 @@ export async function realizarLogin(
         emitAuth(true);
         void sincronizarUsuariosSupabase();
         return { ok: true, usuario: usuarioAutenticado };
+      } else if (resp.status === 400 || resp.status === 401) {
+        // O servidor Supabase respondeu e rejeitou a senha/credenciais
+        supabaseRejeitouCredenciais = true;
       }
     } catch {
       // Se offline ou sem conexão com Supabase Cloud, segue validação local
     }
   }
 
-  // 5. Validação local com comparação de hash seguro SHA-256 (sem expor senhas em texto puro)
+  // 5. Validação local (apenas quando offline ou para a conta demo padrão admin@atospro.com)
+  const ehContaDemoLocal = email === ADMIN_PADRAO.email.toLowerCase();
   const hashTentativa = gerarHashSenhaSync(senha);
   const senhaValida =
+    (!supabaseRejeitouCredenciais || ehContaDemoLocal) &&
     usuarioLocal &&
     usuarioLocal.ativo &&
     ((usuarioLocal.senha && usuarioLocal.senha === senha) ||
       (usuarioLocal.senhaHash && usuarioLocal.senhaHash === hashTentativa) ||
-      (!usuarioLocal.senha && !usuarioLocal.senhaHash && senha === "123456"));
+      (ehContaDemoLocal && !usuarioLocal.senha && !usuarioLocal.senhaHash && senha === "123456"));
 
   if (senhaValida && usuarioLocal) {
     registrarTentativaLoginLocal(email, true);
@@ -1164,6 +1197,7 @@ export async function alterarSenhaUsuarioPeloAdmin(
   const res = await invocarEdgeFunctionAdmin({
     action: "update_password",
     userId: alvo.user_id,
+    email: alvo.email,
     password: validacao.data.novaSenha,
   });
 

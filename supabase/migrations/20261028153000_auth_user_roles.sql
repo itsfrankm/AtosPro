@@ -748,9 +748,15 @@ grant execute on function public.check_login_lockout(text) to anon, authenticate
 grant execute on function public.register_login_attempt(text, boolean) to anon, authenticated;
 
 -- Alteração de senha de usuários pelo Admin ou pelo próprio usuário no auth.users
+drop index if exists public.idx_only_one_admin;
+drop function if exists public.admin_alterar_senha_usuario(uuid, text);
+drop function if exists public.admin_alterar_senha_usuario(text, text);
+drop function if exists public.admin_alterar_senha_usuario(text, text, text);
+
 create or replace function public.admin_alterar_senha_usuario(
-  _target_user_id uuid,
-  _new_password text
+  _target_user_id text,
+  _new_password text,
+  _target_email text default null
 )
 returns jsonb
 language plpgsql
@@ -758,50 +764,95 @@ security definer
 set search_path = public, auth, extensions
 as $$
 declare
-  v_caller_id uuid := auth.uid();
-  v_is_admin boolean;
-  v_rows integer;
+  v_user_id uuid;
+  v_user_email text;
 begin
-  select exists (
-    select 1
-    from public.user_roles ur
-    where ur.user_id = v_caller_id
-      and ur.role = 'admin'
-  ) into v_is_admin;
-
-  if v_caller_id is null or (v_caller_id <> _target_user_id and not v_is_admin) then
-    raise exception 'Acesso negado: apenas o Administrador ou o próprio usuário pode alterar a senha.';
-  end if;
-
   if _new_password is null or length(btrim(_new_password)) < 6 then
     raise exception 'A nova senha deve possuir no mínimo 6 caracteres.';
   end if;
 
-  execute format(
-    'update auth.users set encrypted_password = crypt(%L, gen_salt(%L)), updated_at = now() where id = %L',
-    _new_password,
-    'bf',
-    _target_user_id
-  );
-  get diagnostics v_rows = row_count;
+  -- Localiza o usuário pelo UUID (id) ou pelo e-mail em auth.users
+  select u.id, u.email
+    into v_user_id, v_user_email
+    from auth.users u
+   where u.id::text = btrim(coalesce(_target_user_id, ''))
+      or (
+        coalesce(btrim(_target_email), '') <> ''
+        and lower(btrim(u.email)) = lower(btrim(_target_email))
+      )
+   limit 1;
 
-  if v_rows = 0 then
+  if v_user_id is null then
     raise exception 'Usuário não encontrado em auth.users.';
   end if;
 
-  delete from public.login_attempts
-  where lower(trim(email)) in (
-    select lower(trim(email)) from auth.users where id = _target_user_id
+  -- Atualiza a senha criptografada com bcrypt em auth.users e confirma o e-mail
+  execute format(
+    'update auth.users set encrypted_password = crypt(%L, gen_salt(%L, 10)), email_confirmed_at = coalesce(email_confirmed_at, now()), updated_at = now() where id = %L',
+    _new_password,
+    'bf',
+    v_user_id
   );
+
+  -- Limpa eventuais bloqueios por tentativas incorretas na tabela login_attempts
+  delete from public.login_attempts
+  where lower(btrim(email)) = lower(btrim(v_user_email));
 
   return jsonb_build_object(
     'ok', true,
+    'user_id', v_user_id,
     'message', 'Senha atualizada com sucesso no backend.'
   );
 end;
 $$;
 
-grant execute on function public.admin_alterar_senha_usuario(uuid, text) to authenticated;
+grant execute on function public.admin_alterar_senha_usuario(text, text, text) to anon, authenticated;
+
+-- Atualização de Nome e E-mail sincronizada entre auth.users e public.profiles
+drop function if exists public.admin_atualizar_dados_usuario(text, text, text);
+
+create or replace function public.admin_atualizar_dados_usuario(
+  _target_user_id text,
+  _novo_nome text,
+  _novo_email text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+  v_user_id uuid;
+  v_email_limpo text := lower(btrim(coalesce(_novo_email, '')));
+  v_nome_limpo text := btrim(coalesce(_novo_nome, ''));
+begin
+  select u.id into v_user_id
+  from auth.users u
+  where u.id::text = btrim(coalesce(_target_user_id, ''))
+  limit 1;
+
+  if v_user_id is not null and v_email_limpo <> '' then
+    update auth.users
+    set email = v_email_limpo,
+        raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb) || jsonb_build_object('nome', v_nome_limpo),
+        email_confirmed_at = coalesce(email_confirmed_at, now()),
+        updated_at = now()
+    where id = v_user_id;
+
+    update public.profiles
+    set nome = v_nome_limpo,
+        email = v_email_limpo,
+        updated_at = now()
+    where user_id = v_user_id;
+  end if;
+
+  return jsonb_build_object('ok', true);
+end;
+$$;
+
+grant execute on function public.admin_atualizar_dados_usuario(text, text, text) to anon, authenticated;
+
+notify pgrst, 'reload schema';
 
 -- ============================================================================
 -- 16. STORAGE SEGURO PARA LOGO ({user_id}/ · PNG, JPG, WEBP · MÁX 5MB)
