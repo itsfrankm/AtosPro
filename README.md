@@ -1,6 +1,6 @@
 # AtosPro - Sistema de Ordens de Serviço e Gestão Comercial
 
-Sistema web moderno e completo para assistência técnica e gestão comercial (Ordens de Serviço, PDV/Vendas com Cupom Térmico 80mm, Controle de Estoque, Gestão Financeira com Dashboards, Caixa e Clientes).
+Sistema web moderno e completo para assistência técnica e gestão comercial (Ordens de Serviço, PDV/Vendas com Cupom Térmico, Controle de Estoque, Gestão Financeira com Dashboards, Caixa e Clientes).
 
 ## 🚀 Funcionalidades
 
@@ -23,6 +23,13 @@ Sistema web moderno e completo para assistência técnica e gestão comercial (O
 ```sh
 git clone https://github.com/itsfrankm/atospro.git
 cd atospro
+```
+
+## 📦 Conta de Teste
+
+```
+User: atconvidado@gmail.com
+Senha: 123456
 ```
 
 2. Instale as dependências:
