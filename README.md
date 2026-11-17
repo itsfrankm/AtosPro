@@ -17,19 +17,19 @@ Sistema web moderno e completo para assistência técnica e gestão comercial (O
 - **Gráficos e Impressão:** Recharts, Lucide Icons, html2canvas-pro, jsPDF.
 - **Backend / Banco de Dados:** Supabase (PostgreSQL com RLS, Edge Functions, Auth REST API).
 
+## 📦 Conta de Teste
+
+```
+User: atconvidado@gmail.com
+Senha: 123456
+```
+
 ## 📦 Como Rodar Localmente
 
 1. Clone o repositório:
 ```sh
 git clone https://github.com/itsfrankm/atospro.git
 cd atospro
-```
-
-## 📦 Conta de Teste
-
-```
-User: atconvidado@gmail.com
-Senha: 123456
 ```
 
 2. Instale as dependências:
